@@ -16,3 +16,6 @@ export {
   CardDescription,
   CardContent,
 } from './card';
+
+export { ToastProvider, useToast } from './toast';
+export type { Toast } from './toast';
