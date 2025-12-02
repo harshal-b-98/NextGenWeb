@@ -1312,46 +1312,107 @@ export class AINotificationService {
       .select('id, content, entity_type, metadata')
       .eq('workspace_id', workspaceId);
 
+    // If no knowledge items, generate default starter questions
     if (!knowledgeItems?.length) {
+      console.log('[AINotificationService] No knowledge items found, generating default questions');
+      const defaultQuestions = [
+        {
+          question: 'What is the primary purpose of your website?',
+          options: ['Generate leads', 'Sell products/services', 'Provide information', 'Build brand awareness'],
+        },
+        {
+          question: 'Who is your target audience?',
+          options: ['B2B professionals', 'B2C consumers', 'Developers/Technical', 'General public'],
+        },
+        {
+          question: 'What tone should your website have?',
+          options: ['Professional & formal', 'Friendly & casual', 'Bold & innovative', 'Trustworthy & reliable'],
+        },
+      ];
+
+      for (const q of defaultQuestions) {
+        const notification = await this.createClarificationNotification(
+          workspaceId,
+          q.question,
+          q.options
+        );
+        newNotifications.push(notification);
+      }
+
       return newNotifications;
     }
 
     // Analyze and generate clarification questions using AI
     try {
+      console.log('[AINotificationService] Generating AI-powered clarifications for', knowledgeItems.length, 'items');
       const { data } = await completeJSON<{ clarifications: Array<{ question: string; options?: string[] }> }>({
         messages: [
           {
             role: 'system',
-            content: `Analyze the following knowledge base content and identify 1-3 clarification questions that would help generate a better website.
+            content: `Analyze the following knowledge base content and identify 2-4 clarification questions that would help generate a better website.
 
 Questions should be about:
 - Target audience (if unclear)
 - Primary call-to-action (what should visitors do)
 - Key differentiators (what makes this product unique)
 - Tone and style preferences
+- Design preferences
 
-Only ask questions if the information is genuinely unclear from the content.
+Always generate at least 2 questions even if the content seems complete.
 
-Return JSON: { "clarifications": [{ "question": "...", "options": ["option1", "option2"] }] }`,
+Return JSON: { "clarifications": [{ "question": "...", "options": ["option1", "option2", "option3"] }] }`,
           },
           {
             role: 'user',
             content: `Knowledge base content (${knowledgeItems.length} items):\n${knowledgeItems.slice(0, 5).map(i => i.content.slice(0, 500)).join('\n\n')}`,
           },
         ],
-        config: { maxTokens: 500 },
+        config: { maxTokens: 800 },
       });
 
-      for (const clarification of data.clarifications || []) {
-        const notification = await this.createClarificationNotification(
+      console.log('[AINotificationService] AI response:', data);
+
+      if (data.clarifications && data.clarifications.length > 0) {
+        for (const clarification of data.clarifications) {
+          const notification = await this.createClarificationNotification(
+            workspaceId,
+            clarification.question,
+            clarification.options
+          );
+          newNotifications.push(notification);
+        }
+      } else {
+        // Fallback if AI returns empty
+        console.log('[AINotificationService] AI returned no clarifications, using fallback');
+        const fallbackNotification = await this.createClarificationNotification(
           workspaceId,
-          clarification.question,
-          clarification.options
+          'What is the primary action you want visitors to take on your website?',
+          ['Sign up for a free trial', 'Contact sales', 'Learn more about products', 'Make a purchase']
         );
-        newNotifications.push(notification);
+        newNotifications.push(fallbackNotification);
       }
     } catch (error) {
       console.error('[AINotificationService] Failed to generate clarifications:', error);
+      // Generate fallback questions on error
+      const fallbackQuestions = [
+        {
+          question: 'What is your primary call-to-action?',
+          options: ['Sign up', 'Contact us', 'Learn more', 'Buy now'],
+        },
+        {
+          question: 'What makes your product/service unique?',
+          options: ['Price', 'Quality', 'Features', 'Support'],
+        },
+      ];
+
+      for (const q of fallbackQuestions) {
+        const notification = await this.createClarificationNotification(
+          workspaceId,
+          q.question,
+          q.options
+        );
+        newNotifications.push(notification);
+      }
     }
 
     return newNotifications;
