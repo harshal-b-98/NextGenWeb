@@ -80,10 +80,12 @@ export interface SuggestedCTA {
 export type SectionType =
   | 'features-grid'
   | 'features-cards'
+  | 'features-showcase' // New: features with large image/icon showcase
   | 'faq-accordion'
   | 'pricing-table'
   | 'comparison-table'
   | 'testimonials'
+  | 'social-proof'    // New: social proof with logos/badges
   | 'cta-block'
   | 'timeline'
   | 'stats-display'
@@ -113,6 +115,66 @@ export interface SectionItem {
   label?: string;
   question?: string;
   answer?: string;
+}
+
+// ============================================================================
+// JSON REPAIR UTILITY
+// ============================================================================
+
+/**
+ * Attempt to repair truncated JSON by closing open brackets/braces
+ */
+function repairTruncatedJSON(json: string): string {
+  let repaired = json;
+
+  // Count open brackets and braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (const char of repaired) {
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{') openBraces++;
+    if (char === '}') openBraces--;
+    if (char === '[') openBrackets++;
+    if (char === ']') openBrackets--;
+  }
+
+  // If we're in the middle of a string, close it
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Remove trailing incomplete values (like "confidence": without a value)
+  repaired = repaired.replace(/,\s*"[^"]*":\s*\.{0,3}$/g, '');
+  repaired = repaired.replace(/,\s*"[^"]*":\s*$/g, '');
+  repaired = repaired.replace(/,\s*$/g, '');
+
+  // Close open brackets and braces
+  while (openBrackets > 0) {
+    repaired += ']';
+    openBrackets--;
+  }
+  while (openBraces > 0) {
+    repaired += '}';
+    openBraces--;
+  }
+
+  return repaired;
 }
 
 // ============================================================================
@@ -220,7 +282,8 @@ export class SectionGeneratorService {
 
     let fullContent = '';
     let tokensUsed = 0;
-    for await (const chunk of streamComplete({ messages })) {
+    // Enable JSON mode for streaming to ensure structured output
+    for await (const chunk of streamComplete({ messages, jsonMode: true })) {
       fullContent += chunk;
       tokensUsed += 1; // Approximate token count
       yield chunk;
@@ -241,12 +304,50 @@ export class SectionGeneratorService {
       }
       cleanedContent = cleanedContent.trim();
 
-      parsedContent = JSON.parse(cleanedContent) as SectionContent;
-    } catch {
+      console.log('[Section Generator] Attempting to parse JSON content, length:', cleanedContent.length);
+
+      try {
+        parsedContent = JSON.parse(cleanedContent) as SectionContent;
+      } catch (parseError) {
+        // Try to repair truncated JSON
+        console.log('[Section Generator] JSON parse failed, attempting repair...');
+        const repaired = repairTruncatedJSON(cleanedContent);
+        parsedContent = JSON.parse(repaired) as SectionContent;
+        console.log('[Section Generator] JSON repair successful');
+      }
+
+      // Validate that we have the expected structure
+      if (!parsedContent.type || !parsedContent.items) {
+        console.warn('[Section Generator] Parsed JSON missing required fields:', {
+          hasType: !!parsedContent.type,
+          hasItems: !!parsedContent.items,
+        });
+        throw new Error('Invalid section content structure');
+      }
+
+      console.log('[Section Generator] Successfully parsed section:', {
+        type: parsedContent.type,
+        headline: parsedContent.headline,
+        itemCount: parsedContent.items?.length || 0,
+      });
+    } catch (error) {
+      console.error('[Section Generator] JSON parsing failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        contentPreview: fullContent.slice(0, 500),
+        contentLength: fullContent.length,
+      });
+
+      // Create a meaningful fallback based on content
       parsedContent = {
         type: 'text-block',
-        headline: 'Response',
-        items: [{ id: uuidv4(), title: '', description: fullContent }],
+        headline: 'Information',
+        items: [{
+          id: uuidv4(),
+          title: '',
+          description: fullContent.length > 0
+            ? fullContent
+            : 'Unable to generate content. Please try again or contact our team for assistance.'
+        }],
       };
     }
 
@@ -461,10 +562,12 @@ Respond in JSON:
     const mapping: Record<SectionType, 'text' | 'card-grid' | 'faq-accordion' | 'comparison-table' | 'stats-display' | 'cta-block' | 'timeline' | 'form'> = {
       'features-grid': 'card-grid',
       'features-cards': 'card-grid',
+      'features-showcase': 'card-grid',
       'faq-accordion': 'faq-accordion',
       'pricing-table': 'comparison-table',
       'comparison-table': 'comparison-table',
       'testimonials': 'card-grid',
+      'social-proof': 'stats-display',
       'cta-block': 'cta-block',
       'timeline': 'timeline',
       'stats-display': 'stats-display',
@@ -498,16 +601,18 @@ Respond in JSON:
 
     // Map intent to section type with some randomization for variety
     const intentToSectionOptions: Record<IntentCategory, SectionType[]> = {
-      'product-info': ['features-grid', 'features-cards', 'timeline'],
+      'product-info': ['features-showcase', 'features-grid', 'features-cards', 'timeline'],
       'pricing': ['pricing-table', 'comparison-table', 'stats-display'],
-      'comparison': ['comparison-table', 'features-grid'],
-      'how-it-works': ['timeline', 'features-cards', 'faq-accordion'],
-      'use-case': ['features-cards', 'testimonials', 'timeline'],
+      'comparison': ['comparison-table', 'features-grid', 'stats-display'],
+      'how-it-works': ['timeline', 'features-showcase', 'faq-accordion'],
+      'use-case': ['features-showcase', 'testimonials', 'timeline', 'social-proof'],
       'integration': ['features-grid', 'timeline', 'features-cards'],
-      'support': ['faq-accordion', 'features-cards'],
-      'demo-request': ['cta-block', 'features-grid'],
+      'support': ['faq-accordion', 'features-cards', 'timeline'],
+      'demo-request': ['cta-block', 'features-showcase', 'stats-display'],
       'contact': ['cta-block', 'text-block'],
-      'general': ['text-block', 'features-grid'],
+      'testimonials': ['testimonials', 'social-proof', 'stats-display'],
+      'faq': ['faq-accordion', 'text-block'],
+      'general': ['text-block', 'features-grid', 'features-showcase'],
     };
 
     const options = intentToSectionOptions[intent.category] || ['text-block'];
@@ -629,8 +734,26 @@ Respond in JSON:
     const itemTitle = metadata?.itemTitle as string | undefined;
     const itemDescription = metadata?.itemDescription as string | undefined;
 
-    let prompt = `You are generating inline marketing content for a website visitor.
-The visitor clicked a CTA and expects relevant, helpful information.
+    let prompt = `You are an expert marketing content generator creating high-converting, visually engaging website sections.
+The visitor clicked a CTA and expects compelling, professional content that drives action.
+
+=== CONTENT QUALITY STANDARDS ===
+1. HEADLINES: Make them specific, benefit-focused, and action-oriented
+   - BAD: "Our Features"
+   - GOOD: "Accelerate Your Growth with AI-Powered Tools"
+
+2. DESCRIPTIONS: Use concrete details, not vague claims
+   - BAD: "We help businesses succeed"
+   - GOOD: "Reduce manual work by 60% with automated workflows"
+
+3. STATISTICS: Use specific numbers when available in knowledge base
+   - BAD: "Many customers love us"
+   - GOOD: "Trusted by 10,000+ teams worldwide"
+
+4. ICONS: Choose contextually appropriate icons from: check, book, lightbulb, zap, target, users, chart, settings, help, message, dollar, clock, shield, globe, layers, sparkles
+
+5. VARIETY: Ensure each item has a unique angle and doesn't repeat concepts
+=== END QUALITY STANDARDS ===
 
 CONTEXT:
 - CTA clicked: "${params.ctaSource.ctaText}"
@@ -713,73 +836,89 @@ Generate a GENERIC, HELPFUL response that:
     const schemas: Record<SectionType, string> = {
       'features-grid': `{
   "type": "features-grid",
-  "headline": "Section headline",
-  "subheadline": "Optional subheadline",
+  "headline": "Benefit-focused headline (e.g., 'Accelerate Your Workflow')",
+  "subheadline": "Supporting context with specific value proposition",
   "items": [
-    { "id": "1", "title": "Feature title", "description": "Feature description", "icon": "icon-name" }
+    { "id": "1", "title": "Feature title", "description": "Specific benefit description with concrete details", "icon": "zap|target|shield|etc" }
   ]
 }`,
       'features-cards': `{
   "type": "features-cards",
-  "headline": "Section headline",
+  "headline": "Action-oriented headline",
   "items": [
-    { "id": "1", "title": "Card title", "description": "Card description", "icon": "icon-name" }
+    { "id": "1", "title": "Card title", "description": "Benefit-first description", "icon": "icon-name" }
+  ]
+}`,
+      'features-showcase': `{
+  "type": "features-showcase",
+  "headline": "Highlight headline with key benefit",
+  "subheadline": "Supporting explanation",
+  "items": [
+    { "id": "1", "title": "Feature name", "description": "Detailed explanation with use case", "icon": "zap", "image": "gradient" }
   ]
 }`,
       'faq-accordion': `{
   "type": "faq-accordion",
-  "headline": "Frequently Asked Questions",
+  "headline": "Common Questions Answered",
   "items": [
-    { "id": "1", "question": "Question text?", "answer": "Answer text" }
+    { "id": "1", "question": "Specific question visitors actually ask?", "answer": "Clear, helpful answer with actionable info" }
   ]
 }`,
       'pricing-table': `{
   "type": "pricing-table",
-  "headline": "Pricing Plans",
+  "headline": "Simple, Transparent Pricing",
   "items": [
-    { "id": "1", "title": "Plan name", "value": "$99/mo", "description": "Plan features", "label": "Most Popular" }
+    { "id": "1", "title": "Plan name", "value": "$XX/mo", "description": "Key features included", "label": "Most Popular" }
   ]
 }`,
       'comparison-table': `{
   "type": "comparison-table",
-  "headline": "Comparison",
+  "headline": "See How We Compare",
   "items": [
-    { "id": "1", "title": "Feature", "description": "Our product vs alternatives" }
+    { "id": "1", "title": "Feature/Capability", "description": "How we deliver vs alternatives" }
   ]
 }`,
       'testimonials': `{
   "type": "testimonials",
-  "headline": "What Our Customers Say",
+  "headline": "Trusted by Industry Leaders",
   "items": [
-    { "id": "1", "title": "Customer Name", "description": "Testimonial quote", "label": "Company" }
+    { "id": "1", "title": "Person Name", "description": "Specific quote about results achieved", "label": "Title, Company" }
+  ]
+}`,
+      'social-proof': `{
+  "type": "social-proof",
+  "headline": "Trusted by Teams Worldwide",
+  "subheadline": "Join thousands of satisfied customers",
+  "items": [
+    { "id": "1", "title": "Company/Metric", "description": "Specific achievement or endorsement", "value": "10,000+", "icon": "users" }
   ]
 }`,
       'cta-block': `{
   "type": "cta-block",
-  "headline": "Ready to get started?",
-  "subheadline": "Description",
+  "headline": "Action-driving headline with urgency",
+  "subheadline": "Supporting value proposition",
   "items": [],
-  "cta": { "text": "Button text", "action": "url-or-action", "variant": "primary" }
+  "cta": { "text": "Specific action button text", "action": "url-or-action", "variant": "primary" }
 }`,
       'timeline': `{
   "type": "timeline",
-  "headline": "How It Works",
+  "headline": "Your Path to Success",
   "items": [
-    { "id": "1", "title": "Step 1", "description": "Step description", "label": "1" }
+    { "id": "1", "title": "Step title", "description": "What happens and what you gain", "label": "1" }
   ]
 }`,
       'stats-display': `{
   "type": "stats-display",
-  "headline": "By the Numbers",
+  "headline": "Results That Speak for Themselves",
   "items": [
-    { "id": "1", "value": "100%", "title": "Stat title", "description": "Stat description" }
+    { "id": "1", "value": "95%", "title": "Metric name", "description": "Context for this number" }
   ]
 }`,
       'text-block': `{
   "type": "text-block",
-  "headline": "Title",
+  "headline": "Informative title",
   "items": [
-    { "id": "1", "title": "", "description": "Main text content here" }
+    { "id": "1", "title": "", "description": "Well-structured content with clear paragraphs" }
   ]
 }`,
     };
@@ -795,11 +934,29 @@ ${hasKnowledge ? `- ONLY use information explicitly stated in the knowledge base
 `- Since no knowledge was found, keep claims generic and factual
 - Do NOT make up specific features, pricing, or statistics
 - Focus on acknowledging interest and encouraging contact`}
-- Be concise and focused on what the visitor asked about
-- Generate 3-6 items for grid/card layouts
-- Generate 4-8 items for FAQ
-- Make content compelling and action-oriented
-- Always include appropriate CTAs for next steps
+
+CONTENT STRUCTURE RULES:
+- Generate 3-6 items for grid/card layouts (each item MUST be meaningfully different)
+- Generate 4-8 items for FAQ (questions should cover different aspects)
+- Generate 3-5 steps for timeline (each step should be a clear progression)
+- Generate 3-4 stats for stats-display (use specific numbers from knowledge base)
+
+WRITING STYLE:
+- Be concise but impactful - every word should earn its place
+- Use active voice and action verbs
+- Lead with benefits, support with features
+- Address the visitor directly ("you", "your") when appropriate
+- Create a sense of urgency or value without being pushy
+
+VISUAL ENGAGEMENT:
+- Include relevant icons for each item (choose from available set)
+- Use varied headline structures across items
+- Ensure visual hierarchy with headline > subheadline > items
+
+CTA REQUIREMENTS:
+- Include a clear, actionable CTA when the section type supports it
+- CTA text should be specific (e.g., "Start Free Trial" not "Click Here")
+- Match CTA to the visitor's journey stage based on intent
 
 OUTPUT FORMAT:
 - Return ONLY raw JSON, no markdown code blocks

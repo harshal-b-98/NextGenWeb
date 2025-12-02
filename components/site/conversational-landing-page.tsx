@@ -931,6 +931,25 @@ function ConversationalLandingPageContent({
             </p>
           </motion.div>
 
+          {/* Scroll Indicator */}
+          <motion.div
+            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+          >
+            <motion.div
+              className="flex flex-col items-center cursor-pointer group"
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <span className="text-white/60 text-xs mb-2 group-hover:text-white/80 transition-colors">
+                Scroll or click to explore
+              </span>
+              <ChevronDown className="w-6 h-6 text-white/60 group-hover:text-white transition-colors" />
+            </motion.div>
+          </motion.div>
+
         </div>
           </motion.section>
         )}
@@ -963,14 +982,105 @@ function ConversationalLandingPageContent({
         </AnimatePresence>
       </div>
 
-      {/* Footer (only shows after generated content) */}
+      {/* Enhanced Footer */}
       {visibleSections.length > 0 && (
-        <footer className="bg-gray-900 text-white py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h3 className="text-lg font-bold mb-2">{workspaceConfig.name}</h3>
-            <p className="text-gray-400 text-sm">
-              Powered by AI-driven conversational marketing
-            </p>
+        <footer className="bg-gray-900 text-white">
+          {/* Main Footer Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="grid md:grid-cols-4 gap-12">
+              {/* Brand Column */}
+              <div className="md:col-span-2">
+                <div className="flex items-center gap-3 mb-4">
+                  {workspaceConfig.logo ? (
+                    <img
+                      src={workspaceConfig.logo}
+                      alt={workspaceConfig.name}
+                      className="h-10 w-auto"
+                    />
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {workspaceConfig.name.charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-xl font-bold">{workspaceConfig.name}</span>
+                </div>
+                {workspaceConfig.description && (
+                  <p className="text-gray-400 max-w-md mb-6">
+                    {workspaceConfig.description}
+                  </p>
+                )}
+                {/* Social Links Placeholder */}
+                <div className="flex gap-4">
+                  {['twitter', 'linkedin', 'github'].map((social) => (
+                    <motion.a
+                      key={social}
+                      href="#"
+                      whileHover={{ scale: 1.1 }}
+                      className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors"
+                    >
+                      <span className="sr-only">{social}</span>
+                      <div className="w-5 h-5 bg-gray-600 rounded" />
+                    </motion.a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div>
+                <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-gray-400">
+                  Explore
+                </h4>
+                <ul className="space-y-3">
+                  {personalizedCTAs.slice(0, 4).map((cta) => (
+                    <li key={cta.id}>
+                      <button
+                        onClick={() => handleCTAClick(cta)}
+                        className="text-gray-300 hover:text-white transition-colors text-sm"
+                      >
+                        {cta.text}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Contact/CTA Column */}
+              <div>
+                <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-gray-400">
+                  Get Started
+                </h4>
+                <p className="text-gray-400 text-sm mb-4">
+                  Ready to learn more? Our team is here to help.
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleBackToHero}
+                  className="px-6 py-2.5 rounded-lg font-medium text-sm transition-all"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Start Over
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-gray-500 text-sm">
+                  &copy; {new Date().getFullYear()} {workspaceConfig.name}. All rights reserved.
+                </p>
+                <div className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Powered by AI-driven conversational marketing</span>
+                </div>
+              </div>
+            </div>
           </div>
         </footer>
       )}

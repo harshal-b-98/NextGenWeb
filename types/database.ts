@@ -20,6 +20,15 @@ export type DocumentStatus = 'pending' | 'processing' | 'completed' | 'failed';
 // Website generation status
 export type WebsiteStatus = 'draft' | 'generating' | 'published' | 'archived';
 
+// Embedding generation status for knowledge base items
+export type EmbeddingStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+// Layout generation status for pages
+export type LayoutStatus = 'draft' | 'generating' | 'generated' | 'published' | 'failed';
+
+// Website generation status
+export type WebsiteGenerationStatus = 'draft' | 'generating' | 'generated' | 'published';
+
 // Persona confidence level
 export type PersonaConfidence = 'low' | 'medium' | 'high';
 
@@ -203,6 +212,11 @@ export interface Database {
           metadata: Json;
           created_at: string;
           updated_at: string;
+          // Embedding status tracking fields
+          embedding_status: EmbeddingStatus;
+          embedding_error: string | null;
+          embeddings_count: number;
+          embeddings_generated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -213,6 +227,11 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          // Embedding status tracking fields
+          embedding_status?: EmbeddingStatus;
+          embedding_error?: string | null;
+          embeddings_count?: number;
+          embeddings_generated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -223,6 +242,11 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
+          // Embedding status tracking fields
+          embedding_status?: EmbeddingStatus;
+          embedding_error?: string | null;
+          embeddings_count?: number;
+          embeddings_generated_at?: string | null;
         };
         Relationships: [
           {
@@ -399,6 +423,9 @@ export interface Database {
           created_at: string;
           updated_at: string;
           published_at: string | null;
+          // Generation status fields
+          generation_status: WebsiteGenerationStatus;
+          last_generated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -412,6 +439,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           published_at?: string | null;
+          // Generation status fields
+          generation_status?: WebsiteGenerationStatus;
+          last_generated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -425,6 +455,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           published_at?: string | null;
+          // Generation status fields
+          generation_status?: WebsiteGenerationStatus;
+          last_generated_at?: string | null;
         };
         Relationships: [
           {
@@ -449,6 +482,10 @@ export interface Database {
           sort_order: number;
           created_at: string;
           updated_at: string;
+          // Layout generation status fields
+          layout_status: LayoutStatus;
+          layout_error: string | null;
+          layout_generated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -462,6 +499,10 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          // Layout generation status fields
+          layout_status?: LayoutStatus;
+          layout_error?: string | null;
+          layout_generated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -475,6 +516,10 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          // Layout generation status fields
+          layout_status?: LayoutStatus;
+          layout_error?: string | null;
+          layout_generated_at?: string | null;
         };
         Relationships: [
           {

@@ -238,6 +238,8 @@ export type IntentCategory =
   | 'support'
   | 'demo-request'
   | 'contact'
+  | 'testimonials'
+  | 'faq'
   | 'general';
 
 /**

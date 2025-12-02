@@ -303,6 +303,92 @@ export async function deleteKnowledgeBaseItem(itemId: string): Promise<void> {
 }
 
 /**
+ * Update embedding status for a knowledge base item
+ */
+export async function updateEmbeddingStatus(
+  knowledgeItemId: string,
+  status: 'pending' | 'generating' | 'completed' | 'failed',
+  options?: {
+    error?: string;
+    embeddingsCount?: number;
+  }
+): Promise<void> {
+  const supabase = await createClient();
+
+  const updateData: Record<string, unknown> = {
+    embedding_status: status,
+  };
+
+  if (status === 'completed') {
+    updateData.embeddings_generated_at = new Date().toISOString();
+    updateData.embedding_error = null;
+    if (options?.embeddingsCount !== undefined) {
+      updateData.embeddings_count = options.embeddingsCount;
+    }
+  } else if (status === 'failed' && options?.error) {
+    updateData.embedding_error = options.error;
+  } else if (status === 'generating') {
+    updateData.embedding_error = null;
+  }
+
+  const { error } = await supabase
+    .from('knowledge_base_items')
+    .update(updateData)
+    .eq('id', knowledgeItemId);
+
+  if (error) {
+    console.error(`Failed to update embedding status: ${error.message}`);
+    // Don't throw - this is a non-critical update
+  }
+}
+
+/**
+ * Get embedding stats for a workspace
+ */
+export async function getWorkspaceEmbeddingStats(workspaceId: string): Promise<{
+  totalItems: number;
+  pendingCount: number;
+  generatingCount: number;
+  completedCount: number;
+  failedCount: number;
+  totalEmbeddings: number;
+}> {
+  const supabase = await createClient();
+
+  // Get items by status
+  const { data: items, error } = await supabase
+    .from('knowledge_base_items')
+    .select('id, embedding_status, embeddings_count')
+    .eq('workspace_id', workspaceId);
+
+  if (error) {
+    throw new Error(`Failed to get embedding stats: ${error.message}`);
+  }
+
+  const stats = {
+    totalItems: items?.length || 0,
+    pendingCount: 0,
+    generatingCount: 0,
+    completedCount: 0,
+    failedCount: 0,
+    totalEmbeddings: 0,
+  };
+
+  for (const item of items || []) {
+    // Count by status (handle old records without embedding_status)
+    const status = item.embedding_status || 'pending';
+    if (status === 'pending') stats.pendingCount++;
+    else if (status === 'generating') stats.generatingCount++;
+    else if (status === 'completed') stats.completedCount++;
+    else if (status === 'failed') stats.failedCount++;
+
+    stats.totalEmbeddings += item.embeddings_count || 0;
+  }
+
+  return stats;
+}
+
+/**
  * Get total embedding count for a workspace
  */
 export async function getEmbeddingCount(workspaceId: string): Promise<number> {

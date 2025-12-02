@@ -418,6 +418,8 @@ export class SmartCTAGenerator {
       'support': 'consideration',
       'demo-request': 'action',
       'contact': 'action',
+      'testimonials': 'consideration',
+      'faq': 'consideration',
       'general': current,
     };
 

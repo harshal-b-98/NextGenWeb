@@ -289,7 +289,7 @@ function repairTruncatedJSON(json: string): string {
 export async function* streamComplete(
   options: CompletionOptions
 ): AsyncGenerator<string, void, unknown> {
-  const { messages, config } = options;
+  const { messages, config, jsonMode = false } = options;
   const llmConfig = config
     ? { ...DEFAULT_LLM_CHAIN[0], ...config }
     : DEFAULT_LLM_CHAIN[0];
@@ -318,6 +318,7 @@ export async function* streamComplete(
     temperature: llmConfig.temperature ?? 0.1,
     max_tokens: llmConfig.maxTokens ?? 4096,
     stream: true,
+    response_format: jsonMode ? { type: 'json_object' as const } : undefined,
   });
 
   for await (const chunk of stream) {

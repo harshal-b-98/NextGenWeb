@@ -273,6 +273,8 @@ Respond in JSON format:
       'support': { mode: 'inline', animation: 'fade' },
       'demo-request': { mode: 'modal', animation: 'scale' },
       'contact': { mode: 'modal', animation: 'scale' },
+      'testimonials': { mode: 'inline-expansion', animation: 'slide-up' },
+      'faq': { mode: 'inline-expansion', animation: 'slide-up' },
       'general': { mode: 'inline', animation: 'fade' },
     };
 

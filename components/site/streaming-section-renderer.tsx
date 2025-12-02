@@ -51,6 +51,10 @@ export interface SectionItem {
   label?: string;
   question?: string;
   answer?: string;
+  /** Optional image URL or placeholder keyword for visual content */
+  image?: string;
+  /** Image alt text for accessibility */
+  imageAlt?: string;
 }
 
 export interface SectionContent {
@@ -107,6 +111,70 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'layers': Layers,
   'sparkles': Sparkles,
 };
+
+// Gradient backgrounds for image placeholders when no image URL is provided
+const placeholderGradients = [
+  'from-blue-400 to-indigo-500',
+  'from-purple-400 to-pink-500',
+  'from-green-400 to-teal-500',
+  'from-orange-400 to-red-500',
+  'from-cyan-400 to-blue-500',
+  'from-violet-400 to-purple-500',
+];
+
+/**
+ * ImagePlaceholder component for visual content
+ * Uses gradient backgrounds with icons when no real image is available
+ */
+function ImagePlaceholder({
+  image,
+  imageAlt,
+  icon,
+  title,
+  index,
+  primaryColor,
+  className = '',
+}: {
+  image?: string;
+  imageAlt?: string;
+  icon?: string;
+  title: string;
+  index: number;
+  primaryColor: string;
+  className?: string;
+}) {
+  const Icon = iconMap[icon?.toLowerCase() || ''] || Sparkles;
+  const gradientClass = placeholderGradients[index % placeholderGradients.length];
+
+  // If there's a real image URL, show it
+  if (image && (image.startsWith('http') || image.startsWith('/'))) {
+    return (
+      <div className={`relative overflow-hidden rounded-lg ${className}`}>
+        <img
+          src={image}
+          alt={imageAlt || title}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  // Otherwise show a styled placeholder with gradient and icon
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${gradientClass} ${className}`}
+    >
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
+          <Icon className="w-8 h-8 text-white" />
+        </div>
+      </div>
+      {/* Decorative elements */}
+      <div className="absolute top-2 right-2 w-16 h-16 rounded-full bg-white/10 blur-xl" />
+      <div className="absolute bottom-2 left-2 w-12 h-12 rounded-full bg-white/10 blur-xl" />
+    </div>
+  );
+}
 
 // ============================================================================
 // COMPONENT
@@ -167,14 +235,44 @@ export function StreamingSectionRenderer({
     return iconMap[iconName.toLowerCase()] || Sparkles;
   };
 
+  // Enhanced entrance animation variants
+  const sectionVariants = {
+    hidden: {
+      opacity: 0,
+      y: 60,
+      scale: 0.98,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const, // Custom easing for smooth entrance
+        delay: index * 0.1,
+      }
+    },
+    exit: {
+      opacity: 0,
+      y: -30,
+      scale: 0.98,
+      transition: { duration: 0.3 }
+    }
+  };
+
   return (
     <motion.section
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -50, height: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className={`relative py-16 md:py-24 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+      variants={sectionVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className={`relative py-16 md:py-24 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} overflow-hidden`}
     >
+      {/* Subtle background pattern for visual interest */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: `radial-gradient(circle at 1px 1px, ${primaryColor} 1px, transparent 0)`,
+        backgroundSize: '40px 40px'
+      }} />
       {/* Back to Hero Button */}
       {showBackButton && onBackToHero && (
         <motion.button
@@ -371,7 +469,7 @@ function renderContentWithReveal(
             const isClickable = !!onItemClick;
             return (
               <motion.div
-                key={item.id}
+                key={item.id || `item-${i}`}
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
@@ -412,7 +510,7 @@ function renderContentWithReveal(
             <div className="space-y-8">
               {visibleItems.map((item, i) => (
                 <motion.div
-                  key={item.id}
+                  key={item.id || `timeline-${i}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -445,7 +543,7 @@ function renderContentWithReveal(
         <div className="max-w-3xl mx-auto space-y-4">
           {visibleItems.map((item, i) => (
             <motion.details
-              key={item.id}
+              key={item.id || `faq-${i}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.1 }}
@@ -470,7 +568,7 @@ function renderContentWithReveal(
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {visibleItems.map((item, i) => (
             <motion.div
-              key={item.id}
+              key={item.id || `stats-${i}`}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -499,7 +597,7 @@ function renderContentWithReveal(
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
           {visibleItems.map((item, i) => (
             <motion.div
-              key={item.id}
+              key={item.id || `pricing-${i}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.15 }}
@@ -543,7 +641,7 @@ function renderContentWithReveal(
         <div className="grid md:grid-cols-2 gap-6">
           {visibleItems.map((item, i) => (
             <motion.div
-              key={item.id}
+              key={item.id || `testimonial-${i}`}
               initial={{ opacity: 0, x: i % 2 === 0 ? -20 : 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -572,6 +670,111 @@ function renderContentWithReveal(
         </div>
       );
 
+    case 'features-showcase':
+      return (
+        <div className="space-y-12">
+          {visibleItems.map((item, i) => {
+            const Icon = getIcon(item.icon);
+            const isEven = i % 2 === 0;
+            const isClickable = !!onItemClick;
+            return (
+              <motion.div
+                key={item.id || `showcase-${i}`}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                onClick={() => onItemClick?.(item, content.type)}
+                className={`flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-8 group ${isClickable ? 'cursor-pointer' : ''}`}
+              >
+                {/* Image/Visual */}
+                <div className={`w-full md:w-1/2 ${isClickable ? 'group-hover:scale-[1.02] transition-transform duration-300' : ''}`}>
+                  <ImagePlaceholder
+                    image={item.image}
+                    imageAlt={item.imageAlt}
+                    icon={item.icon}
+                    title={item.title}
+                    index={i}
+                    primaryColor={primaryColor}
+                    className="aspect-video w-full"
+                  />
+                </div>
+                {/* Content */}
+                <div className="w-full md:w-1/2 text-center md:text-left">
+                  <div
+                    className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 ${isClickable ? 'group-hover:scale-110 transition-transform' : ''}`}
+                    style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                  >
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                  <p className="text-gray-600 text-lg leading-relaxed">{item.description}</p>
+                  {isClickable && (
+                    <div className="mt-4 flex items-center justify-center md:justify-start text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: primaryColor }}>
+                      <span>Explore in detail</span>
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      );
+
+    case 'social-proof':
+      return (
+        <div className="text-center">
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            {visibleItems.slice(0, 4).map((item, i) => {
+              const Icon = getIcon(item.icon);
+              return (
+                <motion.div
+                  key={item.id || `social-${i}`}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: i * 0.1 }}
+                  className="text-center"
+                >
+                  <div
+                    className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3"
+                    style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                  >
+                    <Icon className="w-7 h-7" />
+                  </div>
+                  <motion.div
+                    className="text-3xl md:text-4xl font-bold mb-1"
+                    style={{ color: primaryColor }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.1 + 0.2 }}
+                  >
+                    {item.value || item.title}
+                  </motion.div>
+                  <div className="text-gray-500 text-sm">{item.description}</div>
+                </motion.div>
+              );
+            })}
+          </div>
+          {/* Trust Badges/Logos placeholder */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="flex flex-wrap justify-center items-center gap-6 pt-8 border-t border-gray-200"
+          >
+            <span className="text-gray-400 text-sm">Trusted by leading companies</span>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <div
+                key={n}
+                className="w-20 h-8 bg-gray-200 rounded opacity-50"
+                title="Company logo placeholder"
+              />
+            ))}
+          </motion.div>
+        </div>
+      );
+
     case 'comparison-table':
       return (
         <div className="overflow-x-auto">
@@ -579,7 +782,7 @@ function renderContentWithReveal(
             <tbody>
               {visibleItems.map((item, i) => (
                 <motion.tr
-                  key={item.id}
+                  key={item.id || `comparison-${i}`}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.08 }}
@@ -606,7 +809,7 @@ function renderContentWithReveal(
         >
           {visibleItems.map((item, i) => (
             <motion.div
-              key={item.id}
+              key={item.id || `cta-${i}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.2 }}
@@ -637,7 +840,7 @@ function renderContentWithReveal(
         <div className="max-w-3xl mx-auto">
           {visibleItems.map((item, i) => (
             <motion.div
-              key={item.id}
+              key={item.id || `text-${i}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}

@@ -29,6 +29,10 @@ import {
   Box,
   Zap,
   Home,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Database,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,6 +109,16 @@ interface KnowledgeStats {
   entityTypeCounts: Record<EntityType, number>;
 }
 
+interface EmbeddingStats {
+  totalItems: number;
+  pendingCount: number;
+  generatingCount: number;
+  completedCount: number;
+  failedCount: number;
+  totalEmbeddings: number;
+  itemsWithErrors: Array<{ id: string; error: string }>;
+}
+
 type ViewMode = 'list' | 'grid';
 
 export default function KnowledgeBasePage() {
@@ -115,6 +129,7 @@ export default function KnowledgeBasePage() {
   // State
   const [entities, setEntities] = useState<KnowledgeEntity[]>([]);
   const [stats, setStats] = useState<KnowledgeStats | null>(null);
+  const [embeddingStats, setEmbeddingStats] = useState<EmbeddingStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -218,6 +233,20 @@ export default function KnowledgeBasePage() {
     }
   }, [workspaceId]);
 
+  // Fetch embedding stats
+  const fetchEmbeddingStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/knowledge/embedding-stats?workspaceId=${workspaceId}`);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setEmbeddingStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching embedding stats:', error);
+    }
+  }, [workspaceId]);
+
   // Fetch relationships for selected entity
   const fetchEntityRelationships = useCallback(
     async (entityId: string) => {
@@ -249,16 +278,16 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchEntities(), fetchStats()]);
+      await Promise.all([fetchEntities(), fetchStats(), fetchEmbeddingStats()]);
       setIsLoading(false);
     };
     loadData();
-  }, [fetchEntities, fetchStats]);
+  }, [fetchEntities, fetchStats, fetchEmbeddingStats]);
 
   // Refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchEntities(), fetchStats()]);
+    await Promise.all([fetchEntities(), fetchStats(), fetchEmbeddingStats()]);
     setIsRefreshing(false);
     addToast({
       title: 'Refreshed',
@@ -288,6 +317,9 @@ export default function KnowledgeBasePage() {
         description: `Generated ${data.totalEmbeddings} embeddings from ${data.processed} knowledge items`,
         variant: 'success',
       });
+
+      // Refresh embedding stats after regeneration
+      await fetchEmbeddingStats();
     } catch (error) {
       console.error('Error regenerating embeddings:', error);
       addToast({
@@ -415,7 +447,7 @@ export default function KnowledgeBasePage() {
 
       {/* Stats Overview */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <div className="grid gap-4 md:grid-cols-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -457,6 +489,59 @@ export default function KnowledgeBasePage() {
                   <Tag className="h-6 w-6 text-green-600" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Embedding Status Card */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-neutral-500">Embeddings</p>
+                  <p className="text-3xl font-bold">{embeddingStats?.totalEmbeddings || 0}</p>
+                </div>
+                <div className="p-3 bg-amber-100 rounded-lg">
+                  <Database className="h-6 w-6 text-amber-600" />
+                </div>
+              </div>
+              {embeddingStats && (
+                <div className="mt-3 pt-3 border-t space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1 text-green-600">
+                      <CheckCircle className="h-3 w-3" />
+                      Completed
+                    </span>
+                    <span>{embeddingStats.completedCount}</span>
+                  </div>
+                  {embeddingStats.pendingCount > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1 text-amber-600">
+                        <Clock className="h-3 w-3" />
+                        Pending
+                      </span>
+                      <span>{embeddingStats.pendingCount}</span>
+                    </div>
+                  )}
+                  {embeddingStats.generatingCount > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1 text-blue-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Generating
+                      </span>
+                      <span>{embeddingStats.generatingCount}</span>
+                    </div>
+                  )}
+                  {embeddingStats.failedCount > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1 text-red-600">
+                        <AlertCircle className="h-3 w-3" />
+                        Failed
+                      </span>
+                      <span>{embeddingStats.failedCount}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
