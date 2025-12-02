@@ -19,6 +19,8 @@ import {
   ArrowRight,
   Loader2,
   Plus,
+  Home,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -158,6 +160,19 @@ export default function WorkspaceOverviewPage() {
 
   return (
     <div className="container max-w-6xl py-8">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href="/workspaces"
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          All Workspaces
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">{workspace?.name || 'Workspace'}</span>
+      </nav>
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">{workspace?.name || 'Workspace'}</h1>
