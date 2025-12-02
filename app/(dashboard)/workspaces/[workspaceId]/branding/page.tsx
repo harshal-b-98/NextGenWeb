@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { Home, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Types for the brand system
@@ -186,6 +188,19 @@ export default function BrandingPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href={`/workspaces/${workspaceId}`}
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Workspace
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">Branding</span>
+      </nav>
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-neutral-900">Brand & Theme</h1>

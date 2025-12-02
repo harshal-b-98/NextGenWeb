@@ -22,6 +22,8 @@ import {
   Loader2,
   Search,
   RefreshCw,
+  Home,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -150,6 +152,19 @@ export default function WebsitesPage() {
 
   return (
     <div className="container max-w-6xl py-8">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href={`/workspaces/${workspaceId}`}
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Workspace
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">Websites</span>
+      </nav>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>

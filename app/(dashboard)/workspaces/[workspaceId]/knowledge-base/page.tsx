@@ -15,6 +15,7 @@ import {
   Filter,
   RefreshCw,
   ChevronDown,
+  ChevronRight,
   Network,
   List,
   Grid,
@@ -27,6 +28,7 @@ import {
   Edit,
   Box,
   Zap,
+  Home,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -373,14 +375,22 @@ export default function KnowledgeBasePage() {
 
   return (
     <div className="container max-w-7xl py-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link href={`/workspaces/${workspaceId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href={`/workspaces/${workspaceId}`}
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Workspace
         </Link>
-        <div className="flex-1">
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">Knowledge Base</span>
+      </nav>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-6 w-6 text-purple-600" />
             Knowledge Base

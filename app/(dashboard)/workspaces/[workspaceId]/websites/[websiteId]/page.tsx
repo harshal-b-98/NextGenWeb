@@ -326,14 +326,25 @@ export default function WebsiteDetailPage() {
 
   return (
     <div className="container max-w-6xl py-8">
-      {/* Back link */}
-      <Link
-        href={`/workspaces/${workspaceId}/websites`}
-        className="inline-flex items-center text-sm text-neutral-500 hover:text-neutral-700 mb-6"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Websites
-      </Link>
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href={`/workspaces/${workspaceId}`}
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Workspace
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <Link
+          href={`/workspaces/${workspaceId}/websites`}
+          className="hover:text-neutral-700"
+        >
+          Websites
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">{website?.name || 'Website'}</span>
+      </nav>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-8">

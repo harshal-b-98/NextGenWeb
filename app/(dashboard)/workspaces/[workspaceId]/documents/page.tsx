@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, Upload, FileText, Plus, Home, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUpload } from '@/components/documents/file-upload';
@@ -174,14 +174,22 @@ export default function DocumentsPage() {
 
   return (
     <div className="container max-w-5xl py-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link href={`/workspaces/${workspaceId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-6">
+        <Link
+          href={`/workspaces/${workspaceId}`}
+          className="hover:text-neutral-700 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Workspace
         </Link>
-        <div className="flex-1">
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-neutral-900 font-medium">Documents</span>
+      </nav>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
           <h1 className="text-2xl font-bold">Documents</h1>
           <p className="text-neutral-500">
             Upload and manage documents to build your knowledge base
