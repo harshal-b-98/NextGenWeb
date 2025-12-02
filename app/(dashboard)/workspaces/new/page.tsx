@@ -46,51 +46,28 @@ export default function NewWorkspacePage() {
         return;
       }
 
-      // Check if slug is unique
-      const { data: existingWorkspace } = await supabase
-        .from('workspaces')
-        .select('id')
-        .eq('slug', slug)
-        .single();
-
-      if (existingWorkspace) {
-        addToast({
-          title: 'Slug already taken',
-          description: 'Please choose a different workspace name.',
-          variant: 'error',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Create workspace
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .insert({
-          name,
-          slug,
-          description: description || null,
-          owner_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (workspaceError) {
-        throw workspaceError;
-      }
-
-      // Add owner as workspace member
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: workspace.id,
-          user_id: user.id,
-          role: 'owner',
+      // Use the database function to create workspace and add owner atomically
+      const { data: workspaceId, error: createError } = await supabase
+        .rpc('create_workspace_with_owner', {
+          workspace_name: name,
+          workspace_slug: slug,
+          workspace_description: description || null,
         });
 
-      if (memberError) {
-        throw memberError;
+      if (createError) {
+        if (createError.message?.includes('already exists')) {
+          addToast({
+            title: 'Slug already taken',
+            description: 'Please choose a different workspace name.',
+            variant: 'error',
+          });
+          setLoading(false);
+          return;
+        }
+        throw createError;
       }
+
+      const workspace = { id: workspaceId };
 
       addToast({
         title: 'Workspace created!',
@@ -100,11 +77,12 @@ export default function NewWorkspacePage() {
 
       // Redirect to the new workspace
       router.push(`/workspaces/${workspace.id}`);
-    } catch (error) {
-      console.error('Error creating workspace:', error);
+    } catch (error: any) {
+      console.error('Error creating workspace:', JSON.stringify(error, null, 2));
+      const errorMessage = error?.message || error?.error_description || (typeof error === 'object' ? JSON.stringify(error) : 'An unexpected error occurred.');
       addToast({
         title: 'Failed to create workspace',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        description: errorMessage,
         variant: 'error',
       });
     } finally {

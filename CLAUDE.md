@@ -219,6 +219,36 @@ Epics align with development phases. Use Jira issue keys in commit messages.
 
 ## Session Guidelines for Claude
 
+### Issue Tracking & Updates (IMPORTANT)
+
+**After completing EVERY ticket/issue, Claude MUST:**
+
+1. **Update Issue Status** - Use Sidekick PM tools to mark the issue as Done:
+   ```
+   mcp__sidekick__pm_issues_update with status: "Done"
+   ```
+
+2. **Add Completion Comment** - Document what was implemented:
+   - Files created/modified
+   - Key features added
+   - Any important technical decisions
+   - Testing notes if applicable
+
+3. **Update Parent Story** - If all subtasks of a story are complete, mark the story as Done
+
+4. **Proceed to Next Task** - Automatically continue to the next logical task in the roadmap
+
+**Sidekick PM Project ID:** `A9BA324E-4F1D-4ADC-92DB-B8A103D98A3E`
+
+**Example workflow after completing a task:**
+```
+1. Complete the implementation
+2. Run build to verify no errors
+3. Update issue status to Done via pm_issues_update
+4. Check if parent story can be marked Done
+5. Identify and start the next task
+```
+
 ### Ticket Alignment Review
 
 Before starting work on any ticket, Claude should verify alignment with the product vision:
@@ -274,3 +304,43 @@ At the end of each coding session, Claude should provide:
 - Persona detection > 70% accuracy
 
 When reviewing tickets, ensure they contribute to these differentiators and metrics.
+
+---
+
+## Current Progress Tracker
+
+### Completed Stories/Tasks
+| Issue # | Title | Status | Date |
+|---------|-------|--------|------|
+| #7 | Set up Supabase project with multi-tenant schema | Done | - |
+| #8 | Implement Row Level Security (RLS) policies | Done | - |
+| #9 | Build authentication system with Supabase Auth | Done | - |
+| #12 | 1.2 Document Ingestion Pipeline | Done | 2025-11-27 |
+| #13 | Build file upload interface with drag-drop support | Done | 2025-11-27 |
+| #14 | Implement document parsers for all file types | Done | 2025-11-27 |
+| #15 | Integrate OCR for scanned documents | Done | 2025-11-27 |
+| #16 | Build document processing queue system | Done | 2025-11-27 |
+| #77 | Build workspace overview dashboard | Done | 2025-11-27 |
+| #78 | Build document management interface | Done | 2025-11-27 |
+| #92 | Add toast notification system | Done | - |
+| #93 | Add loading states with spinners | Done | - |
+| #94 | Create workspace creation page | Done | - |
+
+### Next Up (Recommended Order)
+1. **#17 - 1.3 Component Library Foundation** (Story)
+   - #18 - Create design system and token configuration
+   - #19 - Set up Storybook for component documentation
+   - #20-25 - Build marketing components (Hero, Features, Testimonials, CTA, Pricing, etc.)
+
+2. **#26 - 2.1 Semantic Knowledge Base** (Story)
+   - #27 - Implement text chunking strategies
+   - #28 - Set up pgvector and embedding generation
+   - #29 - Build entity extraction pipeline with LLM
+
+### Key Files Modified Recently
+- `lib/documents/parsers.ts` - File type definitions and utilities
+- `lib/documents/parsers.server.ts` - Server-side document parsing with OCR
+- `lib/documents/queue.ts` - Document processing queue system
+- `app/api/documents/upload/route.ts` - Upload API with queue integration
+- `app/api/documents/queue/route.ts` - Queue management API
+- `types/database.ts` - Supabase database types
