@@ -265,6 +265,14 @@ function isValidEntityType(type: string): type is EntityType {
     'use_case',
     'integration',
     'contact',
+    // Phase 7: New entity types for KB-grounded generation
+    'company_name',
+    'company_tagline',
+    'company_description',
+    'mission_statement',
+    'social_link',
+    'nav_category',
+    'brand_voice',
   ];
   return validTypes.includes(type as EntityType);
 }
@@ -434,6 +442,81 @@ function transformToEntity(raw: {
         address: raw.metadata?.address as string | undefined,
         socialMedia: raw.metadata?.socialMedia as Record<string, string> | undefined,
       };
+
+    // Phase 7: New entity types for KB-grounded generation
+    case 'company_name':
+      return {
+        ...base,
+        type: 'company_name',
+        legalName: raw.metadata?.legalName as string | undefined,
+        shortName: raw.metadata?.shortName as string | undefined,
+        logoUrl: raw.metadata?.logoUrl as string | undefined,
+      };
+
+    case 'company_tagline':
+      return {
+        ...base,
+        type: 'company_tagline',
+        slogan: (raw.metadata?.slogan as string) || raw.name,
+        isPrimary: raw.metadata?.isPrimary as boolean | undefined,
+      };
+
+    case 'company_description':
+      return {
+        ...base,
+        type: 'company_description',
+        aboutText: (raw.metadata?.aboutText as string) || raw.description || '',
+        foundedYear: raw.metadata?.foundedYear as string | undefined,
+        industry: raw.metadata?.industry as string | undefined,
+      };
+
+    case 'mission_statement':
+      return {
+        ...base,
+        type: 'mission_statement',
+        missionText: (raw.metadata?.missionText as string) || raw.description || '',
+        visionText: raw.metadata?.visionText as string | undefined,
+        values: raw.metadata?.values as string[] | undefined,
+      };
+
+    case 'social_link': {
+      const platformValue = raw.metadata?.platform as string | undefined;
+      const validPlatforms = ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'other'] as const;
+      const platform = validPlatforms.includes(platformValue as typeof validPlatforms[number])
+        ? (platformValue as typeof validPlatforms[number])
+        : 'other';
+      return {
+        ...base,
+        type: 'social_link',
+        platform,
+        url: (raw.metadata?.url as string) || '',
+        handle: raw.metadata?.handle as string | undefined,
+      };
+    }
+
+    case 'nav_category':
+      return {
+        ...base,
+        type: 'nav_category',
+        category: (raw.metadata?.category as string) || raw.name,
+        subcategories: raw.metadata?.subcategories as string[] | undefined,
+        priority: raw.metadata?.priority as number | undefined,
+      };
+
+    case 'brand_voice': {
+      const toneValue = raw.metadata?.tone as string | undefined;
+      const validTones = ['professional', 'casual', 'friendly', 'bold', 'technical'] as const;
+      const tone = validTones.includes(toneValue as typeof validTones[number])
+        ? (toneValue as typeof validTones[number])
+        : 'professional';
+      return {
+        ...base,
+        type: 'brand_voice',
+        tone,
+        traits: raw.metadata?.traits as string[] | undefined,
+        avoidWords: raw.metadata?.avoidWords as string[] | undefined,
+      };
+    }
 
     default:
       return null;

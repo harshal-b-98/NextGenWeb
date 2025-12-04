@@ -1,12 +1,15 @@
 /**
  * Public Page Route
  * Renders sub-pages of a generated website
+ *
+ * Story #128: Integrated global components (header/footer) from database
  */
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SiteRenderer } from '@/components/site/site-renderer';
+import { getHeader, getFooter, type HeaderContent, type FooterContent } from '@/lib/layout/global-components';
 
 interface PageProps {
   params: Promise<{
@@ -73,6 +76,16 @@ export default async function PublicPage({ params }: PageProps) {
     notFound();
   }
 
+  // Fetch global components (header and footer) from database
+  const [headerComponent, footerComponent] = await Promise.all([
+    getHeader(website.id),
+    getFooter(website.id),
+  ]);
+
+  // Extract content from global components (may be undefined if not found)
+  const headerContent = headerComponent?.content as HeaderContent | undefined;
+  const footerContent = footerComponent?.content as FooterContent | undefined;
+
   // Transform database types to component types
   const siteData = {
     id: website.id,
@@ -114,11 +127,17 @@ export default async function PublicPage({ params }: PageProps) {
     content: p.content as Record<string, unknown> | null,
   }));
 
+  // Determine current path for navigation highlighting
+  const currentPath = `/sites/${siteSlug}/${pageSlug}`;
+
   return (
     <SiteRenderer
       website={siteData}
       page={pageData}
       pages={pagesData}
+      headerContent={headerContent}
+      footerContent={footerContent}
+      currentPath={currentPath}
     />
   );
 }

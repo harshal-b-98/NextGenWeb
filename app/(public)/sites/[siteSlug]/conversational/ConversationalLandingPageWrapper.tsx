@@ -3,6 +3,8 @@
 /**
  * Client Wrapper for Conversational Landing Page
  * Handles loading personalized CTAs and passing to the main component
+ *
+ * Story #128: Integrated global components (header/footer) from database
  */
 
 import { useEffect, useState } from 'react';
@@ -12,6 +14,16 @@ import {
   type PersonalizedCTA,
   type WorkspaceConfig,
 } from '@/components/site/conversational-landing-page';
+import { GlobalHeader, DefaultHeader } from '@/components/site/GlobalHeader';
+import { GlobalFooter, DefaultFooter } from '@/components/site/GlobalFooter';
+import type { HeaderContent, FooterContent } from '@/lib/layout/global-components';
+
+interface PageInfo {
+  id: string;
+  title: string;
+  slug: string;
+  is_homepage: boolean;
+}
 
 interface ConversationalLandingPageWrapperProps {
   websiteId: string;
@@ -19,6 +31,9 @@ interface ConversationalLandingPageWrapperProps {
   websiteName: string;
   slug: string;
   brandConfig: Record<string, unknown> | null;
+  headerContent?: HeaderContent;
+  footerContent?: FooterContent;
+  pages?: PageInfo[];
 }
 
 export function ConversationalLandingPageWrapper({
@@ -27,6 +42,9 @@ export function ConversationalLandingPageWrapper({
   websiteName,
   slug,
   brandConfig,
+  headerContent,
+  footerContent,
+  pages = [],
 }: ConversationalLandingPageWrapperProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,14 +123,81 @@ export function ConversationalLandingPageWrapper({
     );
   }
 
+  const primaryColor = workspaceConfig.primaryColor || '#3B82F6';
+  const currentPath = `/sites/${slug}`;
+
+  // Helper to render header
+  const renderHeader = () => {
+    if (headerContent) {
+      return (
+        <GlobalHeader
+          websiteSlug={slug}
+          content={headerContent}
+          navStyle="simple"
+          primaryColor={primaryColor}
+          currentPath={currentPath}
+        />
+      );
+    }
+    return (
+      <DefaultHeader
+        websiteSlug={slug}
+        websiteName={websiteName}
+        pages={pages.map((p) => ({
+          title: p.title,
+          slug: p.slug,
+          is_homepage: p.is_homepage,
+        }))}
+        primaryColor={primaryColor}
+        currentPath={currentPath}
+      />
+    );
+  };
+
+  // Helper to render footer
+  const renderFooter = () => {
+    if (footerContent) {
+      return (
+        <GlobalFooter
+          websiteSlug={slug}
+          content={footerContent}
+          primaryColor={primaryColor}
+        />
+      );
+    }
+    return (
+      <DefaultFooter
+        websiteSlug={slug}
+        websiteName={websiteName}
+        pages={pages.map((p) => ({
+          title: p.title,
+          slug: p.slug,
+          is_homepage: p.is_homepage,
+        }))}
+        primaryColor={primaryColor}
+      />
+    );
+  };
+
   return (
-    <ConversationalLandingPage
-      websiteId={websiteId}
-      workspaceId={workspaceId}
-      workspaceConfig={workspaceConfig}
-      personalizedCTAs={ctas}
-      slug={slug}
-    />
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      {renderHeader()}
+
+      {/* Main Content */}
+      <main className="flex-grow">
+        <ConversationalLandingPage
+          websiteId={websiteId}
+          workspaceId={workspaceId}
+          workspaceConfig={workspaceConfig}
+          personalizedCTAs={ctas}
+          slug={slug}
+        />
+      </main>
+
+      {/* Footer */}
+      {renderFooter()}
+    </div>
   );
 }
 

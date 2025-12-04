@@ -38,13 +38,13 @@ export interface LLMConfig {
 
 /**
  * Default LLM configurations for fallback chain
- * Using claude-3-5-sonnet as primary (current recommended model)
+ * Using Claude Sonnet 4 as primary (most capable model)
  */
 export const DEFAULT_LLM_CHAIN: LLMConfig[] = [
+  { provider: 'anthropic', model: 'claude-sonnet-4-20250514', temperature: 0.1 },
+  { provider: 'anthropic', model: 'claude-3-7-sonnet-20250219', temperature: 0.1 },
+  { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', temperature: 0.1 },
   { provider: 'openai', model: 'gpt-4o', temperature: 0.1 },
-  { provider: 'openai', model: 'gpt-4o-mini', temperature: 0.1 },
-  { provider: 'anthropic', model: 'claude-3-haiku-20240307', temperature: 0.1 },
-  { provider: 'openai', model: 'gpt-3.5-turbo', temperature: 0.1 },
 ];
 
 /**
@@ -77,7 +77,15 @@ export type EntityType =
   | 'process_step'
   | 'use_case'
   | 'integration'
-  | 'contact';
+  | 'contact'
+  // Phase 7: New entity types for KB-grounded generation
+  | 'company_name'
+  | 'company_tagline'
+  | 'company_description'
+  | 'mission_statement'
+  | 'social_link'
+  | 'nav_category'
+  | 'brand_voice';
 
 /**
  * Base entity structure
@@ -249,6 +257,79 @@ export interface ContactEntity extends BaseEntity {
   socialMedia?: Record<string, string>;
 }
 
+// =============================================
+// Phase 7: KB-Grounded Generation Entity Types
+// =============================================
+
+/**
+ * Company name entity - the primary organization name
+ */
+export interface CompanyNameEntity extends BaseEntity {
+  type: 'company_name';
+  legalName?: string;
+  shortName?: string;
+  logoUrl?: string;
+}
+
+/**
+ * Company tagline entity - short catchy slogans
+ */
+export interface CompanyTaglineEntity extends BaseEntity {
+  type: 'company_tagline';
+  slogan: string;
+  isPrimary?: boolean;
+}
+
+/**
+ * Company description entity - about us content
+ */
+export interface CompanyDescriptionEntity extends BaseEntity {
+  type: 'company_description';
+  aboutText: string;
+  foundedYear?: string;
+  industry?: string;
+}
+
+/**
+ * Mission statement entity - mission, vision, values
+ */
+export interface MissionStatementEntity extends BaseEntity {
+  type: 'mission_statement';
+  missionText: string;
+  visionText?: string;
+  values?: string[];
+}
+
+/**
+ * Social link entity - social media profile URLs
+ */
+export interface SocialLinkEntity extends BaseEntity {
+  type: 'social_link';
+  platform: 'linkedin' | 'twitter' | 'facebook' | 'instagram' | 'youtube' | 'other';
+  url: string;
+  handle?: string;
+}
+
+/**
+ * Navigation category entity - logical content categories
+ */
+export interface NavCategoryEntity extends BaseEntity {
+  type: 'nav_category';
+  category: string;
+  subcategories?: string[];
+  priority?: number;
+}
+
+/**
+ * Brand voice entity - tone and style descriptors
+ */
+export interface BrandVoiceEntity extends BaseEntity {
+  type: 'brand_voice';
+  tone: 'professional' | 'casual' | 'friendly' | 'bold' | 'technical';
+  traits?: string[];
+  avoidWords?: string[];
+}
+
 /**
  * Union type for all entities
  */
@@ -267,7 +348,15 @@ export type Entity =
   | ProcessStepEntity
   | UseCaseEntity
   | IntegrationEntity
-  | ContactEntity;
+  | ContactEntity
+  // Phase 7: KB-Grounded Generation Entity Types
+  | CompanyNameEntity
+  | CompanyTaglineEntity
+  | CompanyDescriptionEntity
+  | MissionStatementEntity
+  | SocialLinkEntity
+  | NavCategoryEntity
+  | BrandVoiceEntity;
 
 /**
  * Zod schema for entity validation
@@ -290,6 +379,14 @@ export const EntitySchema = z.object({
     'use_case',
     'integration',
     'contact',
+    // Phase 7: KB-Grounded Generation Entity Types
+    'company_name',
+    'company_tagline',
+    'company_description',
+    'mission_statement',
+    'social_link',
+    'nav_category',
+    'brand_voice',
   ]),
   name: z.string(),
   description: z.string().optional(),

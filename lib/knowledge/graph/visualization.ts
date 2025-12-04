@@ -35,6 +35,14 @@ export const DEFAULT_ENTITY_COLORS: Record<EntityType, string> = {
   use_case: '#059669', // emerald
   integration: '#2563EB', // blue-600
   contact: '#4B5563', // gray
+  // Phase 7: KB-Grounded Generation Entity Types
+  company_name: '#0EA5E9', // sky
+  company_tagline: '#D946EF', // fuchsia
+  company_description: '#78716C', // stone
+  mission_statement: '#EAB308', // yellow
+  social_link: '#3B82F6', // blue
+  nav_category: '#6B7280', // gray
+  brand_voice: '#F59E0B', // amber
 };
 
 /**

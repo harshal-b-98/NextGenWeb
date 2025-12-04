@@ -4,12 +4,17 @@
  * Orchestrates the complete pipeline for automatic website generation:
  * 1. Extract knowledge from completed documents
  * 2. Create or update website with generated pages
+ * 3. Generate global components (header, footer) for the website
+ *
+ * Story #129: Pipeline Integration for Global Component Generation
  */
 
 import { createClient } from '@/lib/supabase/server';
 import { extractEntities } from '@/lib/ai/agents/entity-extraction';
-import { generatePageLayout, savePageLayout } from '@/lib/layout/generation';
+import { generatePageLayout, savePageLayout, generateGlobalComponentsWithAI } from '@/lib/layout/generation';
 import { reprocessKnowledgeItem } from '@/lib/knowledge/embeddings/pipeline';
+import { hasGlobalComponents } from '@/lib/layout/global-components';
+import { createWebsiteVersion } from '@/lib/versions/website-version-manager';
 import type { PageType } from '@/lib/layout/types';
 
 // Max text length for entity extraction
@@ -25,6 +30,7 @@ export interface PipelineResult {
   websiteCreated: boolean;
   websiteId?: string;
   pagesGenerated: number;
+  globalComponentsGenerated: boolean;
   errors: string[];
 }
 
@@ -33,6 +39,7 @@ export interface PipelineOptions {
   documentId?: string;
   skipKnowledgeExtraction?: boolean;
   skipPageGeneration?: boolean;
+  skipGlobalComponents?: boolean;
 }
 
 /**
@@ -42,7 +49,7 @@ export interface PipelineOptions {
 export async function runAutoGeneratePipeline(
   options: PipelineOptions
 ): Promise<PipelineResult> {
-  const { workspaceId, documentId, skipKnowledgeExtraction, skipPageGeneration } = options;
+  const { workspaceId, documentId, skipKnowledgeExtraction, skipPageGeneration, skipGlobalComponents } = options;
 
   const result: PipelineResult = {
     knowledgeExtracted: false,
@@ -50,6 +57,7 @@ export async function runAutoGeneratePipeline(
     embeddingsGenerated: 0,
     websiteCreated: false,
     pagesGenerated: 0,
+    globalComponentsGenerated: false,
     errors: [],
   };
 
@@ -264,6 +272,83 @@ export async function runAutoGeneratePipeline(
           .update({ updated_at: new Date().toISOString() })
           .eq('id', websiteId);
       }
+
+      // Step 5: Generate global components (header, footer) if not already present
+      if (!skipGlobalComponents) {
+        try {
+          // Check if global components already exist for this website
+          const alreadyHasComponents = await hasGlobalComponents(websiteId);
+
+          if (!alreadyHasComponents) {
+            console.log(`[Auto-Generate] Generating global components for website ${websiteId}...`);
+
+            // Get all pages for this website
+            const { data: allPages } = await supabase
+              .from('pages')
+              .select('id, title, slug, is_homepage')
+              .eq('website_id', websiteId)
+              .order('is_homepage', { ascending: false });
+
+            // Get website details for brand info
+            const { data: websiteDetails } = await supabase
+              .from('websites')
+              .select('name, slug, brand_config')
+              .eq('id', websiteId)
+              .single();
+
+            const brandConfig = (websiteDetails?.brand_config || {}) as Record<string, unknown>;
+
+            // Generate global components using AI
+            const globalResult = await generateGlobalComponentsWithAI({
+              websiteId,
+              workspaceId,
+              websiteName: websiteDetails?.name || workspace?.name || 'Website',
+              pages: (allPages || []).map((p) => ({
+                title: p.title,
+                slug: p.slug,
+                isHomepage: p.is_homepage,
+              })),
+              industry: (brandConfig.industry as string) || undefined,
+              companyDescription: (brandConfig.description as string) || undefined,
+            });
+
+            if (globalResult.success) {
+              result.globalComponentsGenerated = true;
+              console.log(`[Auto-Generate] Successfully generated global components for website ${websiteId}`);
+            } else {
+              result.errors.push(`Global component generation failed: ${globalResult.error}`);
+            }
+          } else {
+            console.log(`[Auto-Generate] Global components already exist for website ${websiteId}, skipping`);
+          }
+        } catch (globalError) {
+          result.errors.push(
+            `Global component generation failed: ${globalError instanceof Error ? globalError.message : 'Unknown error'}`
+          );
+        }
+      }
+    }
+
+    // Step 6: Create initial website version if pages were generated
+    if (result.pagesGenerated > 0 && result.websiteId) {
+      try {
+        const { version, error: versionError } = await createWebsiteVersion({
+          websiteId: result.websiteId,
+          versionName: 'v1 - Initial Generation',
+          description: `Initial website generation with ${result.pagesGenerated} pages`,
+          triggerType: 'initial',
+        });
+
+        if (!versionError && version) {
+          console.log(`[Auto-Generate] Created initial version ${version.id} for website ${result.websiteId}`);
+        } else {
+          console.error('[Auto-Generate] Failed to create initial version:', versionError);
+          result.errors.push('Failed to create initial version');
+        }
+      } catch (versionCreateError) {
+        console.error('[Auto-Generate] Version creation error:', versionCreateError);
+        result.errors.push('Failed to create initial version');
+      }
     }
 
     return result;
@@ -293,6 +378,10 @@ export function buildResultMessage(result: PipelineResult): string {
 
   if (result.pagesGenerated > 0) {
     parts.push(`Generated ${result.pagesGenerated} pages`);
+  }
+
+  if (result.globalComponentsGenerated) {
+    parts.push('Generated header and footer');
   }
 
   if (result.errors.length > 0) {

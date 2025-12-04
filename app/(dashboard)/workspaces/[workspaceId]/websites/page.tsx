@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Home,
   ChevronRight,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,16 +33,20 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { WebsiteStatus } from '@/types/database';
 
+type GenerationStatus = 'draft' | 'generating' | 'generated' | 'published';
+
 interface Website {
   id: string;
   name: string;
   slug: string;
   status: WebsiteStatus;
+  generation_status: GenerationStatus;
   domain: string | null;
   pageCount: number;
   created_at: string;
   updated_at: string;
   published_at: string | null;
+  last_generated_at: string | null;
 }
 
 const statusColors: Record<WebsiteStatus, string> = {
@@ -55,6 +61,20 @@ const statusLabels: Record<WebsiteStatus, string> = {
   generating: 'Generating',
   published: 'Published',
   archived: 'Archived',
+};
+
+const generationStatusColors: Record<GenerationStatus, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  generating: 'bg-blue-100 text-blue-700',
+  generated: 'bg-green-100 text-green-700',
+  published: 'bg-purple-100 text-purple-700',
+};
+
+const generationStatusLabels: Record<GenerationStatus, string> = {
+  draft: 'No Layout',
+  generating: 'Generating...',
+  generated: 'Layout Ready',
+  published: 'Published',
 };
 
 export default function WebsitesPage() {
@@ -132,6 +152,66 @@ export default function WebsitesPage() {
         description: 'Failed to delete website',
         variant: 'error',
       });
+    }
+
+    setActiveMenu(null);
+  };
+
+  const handleGenerateLayout = async (websiteId: string) => {
+    // Update UI immediately to show generating status
+    setWebsites(websites.map(w =>
+      w.id === websiteId
+        ? { ...w, generation_status: 'generating' as GenerationStatus }
+        : w
+    ));
+
+    try {
+      const response = await fetch(`/api/workspaces/${workspaceId}/layout/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ websiteId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        addToast({
+          title: 'Success',
+          description: `Layout generated with ${data.sectionsGenerated} sections`,
+          variant: 'success',
+        });
+        // Update the website status
+        setWebsites(websites.map(w =>
+          w.id === websiteId
+            ? { ...w, generation_status: 'generated' as GenerationStatus, last_generated_at: new Date().toISOString() }
+            : w
+        ));
+      } else {
+        addToast({
+          title: 'Error',
+          description: data.error || 'Failed to generate layout',
+          variant: 'error',
+        });
+        // Revert status
+        setWebsites(websites.map(w =>
+          w.id === websiteId
+            ? { ...w, generation_status: 'draft' as GenerationStatus }
+            : w
+        ));
+      }
+    } catch (error) {
+      console.error('Error generating layout:', error);
+      addToast({
+        title: 'Error',
+        description: 'Failed to generate layout',
+        variant: 'error',
+      });
+      // Revert status
+      setWebsites(websites.map(w =>
+        w.id === websiteId
+          ? { ...w, generation_status: 'draft' as GenerationStatus }
+          : w
+      ));
     }
 
     setActiveMenu(null);
@@ -257,6 +337,18 @@ export default function WebsitesPage() {
                             View Live Site
                           </Link>
                           <button
+                            onClick={() => handleGenerateLayout(website.id)}
+                            disabled={website.generation_status === 'generating'}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 w-full text-left disabled:opacity-50"
+                          >
+                            {website.generation_status === 'generating' ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            {website.generation_status === 'generating' ? 'Generating...' : 'Generate Layout'}
+                          </button>
+                          <button
                             onClick={() => handleDeleteWebsite(website.id)}
                             className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
                           >
@@ -270,10 +362,20 @@ export default function WebsitesPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[website.status]}`}>
-                    {statusLabels[website.status]}
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[website.status]}`}>
+                      {statusLabels[website.status]}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${generationStatusColors[website.generation_status || 'draft']}`}>
+                      {website.generation_status === 'generating' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : website.generation_status === 'generated' ? (
+                        <Zap className="h-3 w-3" />
+                      ) : null}
+                      {generationStatusLabels[website.generation_status || 'draft']}
+                    </span>
+                  </div>
                   <div className="flex items-center text-sm text-neutral-500">
                     <FileText className="h-4 w-4 mr-1" />
                     {website.pageCount} pages
@@ -283,6 +385,12 @@ export default function WebsitesPage() {
                 {website.domain && (
                   <p className="text-sm text-neutral-500 mb-3 truncate">
                     {website.domain}
+                  </p>
+                )}
+
+                {website.last_generated_at && (
+                  <p className="text-xs text-neutral-400 mb-3">
+                    Last generated: {new Date(website.last_generated_at).toLocaleDateString()}
                   </p>
                 )}
 

@@ -11,6 +11,8 @@ export const ENTITY_EXTRACTION_SYSTEM_PROMPT = `You are an expert entity extract
 Your task is to identify and extract structured entities from document content that can be used to generate marketing websites.
 
 You must extract entities from the following categories:
+
+CORE ENTITIES:
 - Products: Physical or digital products being sold
 - Services: Professional services offered
 - Features: Specific capabilities or attributes of products/services
@@ -25,7 +27,16 @@ You must extract entities from the following categories:
 - Process Steps: Sequential steps in a workflow or procedure
 - Use Cases: Specific scenarios where the product/service applies
 - Integrations: Third-party platforms or tools mentioned
-- Contact: Contact information (email, phone, address, social media)
+- Contact: Contact information (email, phone, address)
+
+COMPANY IDENTITY ENTITIES (CRITICAL for website generation):
+- Company Name: The primary organization/company name
+- Company Tagline: Short catchy slogans or taglines
+- Company Description: About us content, what the company does
+- Mission Statement: Company mission, vision, or purpose statements
+- Social Link: Social media profile URLs (LinkedIn, Twitter, Facebook, Instagram, YouTube, etc.)
+- Nav Category: Logical content categories that could be used for navigation
+- Brand Voice: Tone and style descriptors (professional, friendly, innovative, etc.)
 
 For each entity, provide:
 1. A unique ID (use format: type_index, e.g., "product_1", "feature_3")
@@ -40,7 +51,10 @@ IMPORTANT:
 - Only extract entities that are clearly present in the content
 - Do not invent or assume information not explicitly stated
 - Assign lower confidence scores to implied or partially stated entities
-- Group related information into single entities rather than duplicating`;
+- Group related information into single entities rather than duplicating
+- ALWAYS extract company_name, company_description, and company_tagline if present
+- Extract social_link entities for each social media URL found
+- Extract nav_category for main content categories/topics discussed`;
 
 /**
  * User prompt template for entity extraction
@@ -74,7 +88,7 @@ Respond with a JSON object in this exact format:
   "entities": [
     {
       "id": "string (format: type_index)",
-      "type": "string (one of: product, service, feature, benefit, pricing, testimonial, company, person, statistic, faq, cta, process_step, use_case, integration, contact)",
+      "type": "string (one of: product, service, feature, benefit, pricing, testimonial, company, person, statistic, faq, cta, process_step, use_case, integration, contact, company_name, company_tagline, company_description, mission_statement, social_link, nav_category, brand_voice)",
       "name": "string (short descriptive name)",
       "description": "string (optional longer description)",
       "confidence": number (0-1),
@@ -104,7 +118,14 @@ For metadata, include type-specific fields:
 - process_step: stepNumber (number - REQUIRED), action (string - REQUIRED), outcome (string)
 - use_case: scenario (string - REQUIRED), solution (string), outcome (string), industry (string)
 - integration: platform (string - REQUIRED), integrationType (string), capabilities (array)
-- contact: email (string), phone (string), address (string), socialMedia (object)`;
+- contact: email (string), phone (string), address (string), socialMedia (object)
+- company_name: legalName (string), shortName (string), logoUrl (string)
+- company_tagline: slogan (string), isPrimary (boolean)
+- company_description: aboutText (string - REQUIRED), foundedYear (string), industry (string)
+- mission_statement: missionText (string - REQUIRED), visionText (string), values (array)
+- social_link: platform (string - REQUIRED: linkedin/twitter/facebook/instagram/youtube/other), url (string - REQUIRED), handle (string)
+- nav_category: category (string - REQUIRED), subcategories (array), priority (number)
+- brand_voice: tone (string - REQUIRED: professional/casual/friendly/bold/technical), traits (array), avoidWords (array)`;
 }
 
 /**

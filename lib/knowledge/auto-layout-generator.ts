@@ -396,6 +396,12 @@ export class AutoLayoutGenerator {
         return { success: false, sectionsGenerated: 0, error: 'Failed to get or create website' };
       }
 
+      // Mark website as generating
+      await supabase
+        .from('websites')
+        .update({ generation_status: 'generating' })
+        .eq('id', website.id);
+
       // Build analysis metadata
       const analysisMetadata: LayoutAnalysisMetadata = {
         totalEntities: entities?.length || 0,
@@ -421,7 +427,7 @@ export class AutoLayoutGenerator {
       // Merge with existing settings
       const existingSettings = (website.settings as Record<string, unknown>) || {};
 
-      // Update website with generated layout
+      // Update website with generated layout and generation status
       const { error: updateError } = await supabase
         .from('websites')
         .update({
@@ -431,12 +437,19 @@ export class AutoLayoutGenerator {
             lastKnowledgeSync: new Date().toISOString(),
             improvements: improvements,
           })),
+          generation_status: 'generated',
+          last_generated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', website.id);
 
       if (updateError) {
         console.error('[AutoLayoutGenerator] Failed to update website:', updateError);
+        // Try to update status to failed
+        await supabase
+          .from('websites')
+          .update({ generation_status: 'draft' })
+          .eq('id', website.id);
         return { success: false, sectionsGenerated: 0, error: 'Failed to save layout' };
       }
 
@@ -526,13 +539,21 @@ Return JSON: { "headline": "...", "subheadline": "..." }
   ): Promise<ContentSection[]> {
     const sections: ContentSection[] = [];
 
-    // Features Grid
+    // Features Grid - use ANY entities if no specific feature types found
     const featureTypes = ['feature', 'product', 'capability', 'service'];
-    const featureEntities = featureTypes
+    let featureEntities = featureTypes
       .flatMap(t => entitiesByType[t] || [])
       .slice(0, 9);
 
-    if (featureEntities.length >= 3) {
+    // Fallback: if not enough features, use other entity types as features
+    if (featureEntities.length < 3) {
+      const allEntities = Object.values(entitiesByType).flat();
+      featureEntities = allEntities
+        .filter(e => !['company_name', 'company_tagline', 'company_description', 'mission_statement'].includes(e.entity_type))
+        .slice(0, 6);
+    }
+
+    if (featureEntities.length >= 1) {
       sections.push({
         type: 'features-grid',
         headline: 'Powerful Features',
@@ -549,13 +570,22 @@ Return JSON: { "headline": "...", "subheadline": "..." }
       });
     }
 
-    // Benefits Cards
+    // Benefits Cards - more lenient
     const benefitTypes = ['benefit', 'value', 'advantage'];
-    const benefitEntities = benefitTypes
+    let benefitEntities = benefitTypes
       .flatMap(t => entitiesByType[t] || [])
       .slice(0, 6);
 
-    if (benefitEntities.length >= 2) {
+    // Fallback: use any entities not already used
+    if (benefitEntities.length < 2 && featureEntities.length > 3) {
+      const allEntities = Object.values(entitiesByType).flat();
+      const usedIds = new Set(featureEntities.map(e => e.id));
+      benefitEntities = allEntities
+        .filter(e => !usedIds.has(e.id) && !['company_name', 'company_tagline'].includes(e.entity_type))
+        .slice(0, 3);
+    }
+
+    if (benefitEntities.length >= 1) {
       sections.push({
         type: 'benefits-cards',
         headline: 'Why Choose Us',
@@ -775,6 +805,27 @@ Return JSON: { "headline": "...", "subheadline": "..." }
           description: e.description || '',
         })),
       });
+    }
+
+    // Fallback: If no sections were created but we have entities, create a generic content section
+    if (sections.length === 0) {
+      const allEntities = Object.values(entitiesByType).flat();
+      if (allEntities.length > 0) {
+        sections.push({
+          type: 'features-grid',
+          headline: 'What We Offer',
+          subheadline: 'Discover our solutions',
+          topic: 'general',
+          priority: 50,
+          confidence: 0.7,
+          items: allEntities.slice(0, 6).map(e => ({
+            id: e.id,
+            title: e.name,
+            description: e.description || `Learn about ${e.name}`,
+            icon: 'sparkles',
+          })),
+        });
+      }
     }
 
     // Sort by priority

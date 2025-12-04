@@ -35,6 +35,7 @@ export function DynamicPageRenderer({
   onPersonaDetected,
   onContentAdapted,
   onError,
+  sectionWrapper: SectionWrapper,
 }: DynamicPageRendererProps) {
   // Merge animation config
   const animationConfig: RuntimeAnimationConfig = useMemo(
@@ -148,7 +149,7 @@ export function DynamicPageRenderer({
 
             if (!content) return null;
 
-            return (
+            const sectionElement = (
               <DynamicSectionRenderer
                 key={`${section.sectionId}-${runtime.activeVariant}`}
                 section={section}
@@ -159,6 +160,21 @@ export function DynamicPageRenderer({
                 brandConfig={pageData.brandConfig}
               />
             );
+
+            // Wrap with SectionWrapper if provided (for feedback overlay support)
+            if (SectionWrapper) {
+              return (
+                <SectionWrapper
+                  key={`wrapper-${section.sectionId}-${runtime.activeVariant}`}
+                  sectionId={section.sectionId}
+                  componentId={section.componentId}
+                >
+                  {sectionElement}
+                </SectionWrapper>
+              );
+            }
+
+            return sectionElement;
           })}
         </AnimatePresence>
       </motion.main>

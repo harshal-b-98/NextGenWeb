@@ -23,7 +23,7 @@ export function DashboardNavbar() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.push('/login');
+      router.push('/'); // Redirect to public landing page
     } catch (error) {
       console.error('Sign out error:', error);
       setIsSigningOut(false);
@@ -37,7 +37,7 @@ export function DashboardNavbar() {
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container flex h-14 items-center justify-between px-4 md:px-6">
         {/* Logo / Brand */}
-        <Link href="/workspaces" className="flex items-center gap-2">
+        <Link href={user ? "/websites" : "/"} className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-white font-bold text-sm">N</span>
           </div>

@@ -58,6 +58,14 @@ const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
   use_case: 'bg-violet-100 text-violet-700 border-violet-200',
   integration: 'bg-lime-100 text-lime-700 border-lime-200',
   contact: 'bg-rose-100 text-rose-700 border-rose-200',
+  // Phase 7: KB-Grounded Generation Entity Types
+  company_name: 'bg-sky-100 text-sky-700 border-sky-200',
+  company_tagline: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+  company_description: 'bg-stone-100 text-stone-700 border-stone-200',
+  mission_statement: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  social_link: 'bg-blue-100 text-blue-700 border-blue-200',
+  nav_category: 'bg-gray-100 text-gray-700 border-gray-200',
+  brand_voice: 'bg-amber-100 text-amber-700 border-amber-200',
 };
 
 // All entity types
@@ -77,6 +85,14 @@ const ALL_ENTITY_TYPES: EntityType[] = [
   'use_case',
   'integration',
   'contact',
+  // Phase 7: KB-Grounded Generation Entity Types
+  'company_name',
+  'company_tagline',
+  'company_description',
+  'mission_statement',
+  'social_link',
+  'nav_category',
+  'brand_voice',
 ];
 
 interface KnowledgeEntity {

@@ -5,10 +5,12 @@
  * Renders a generated website page with all its sections
  *
  * Phase 6: Now supports Conversational Marketing with inline section generation
+ * Story #127: Integrated GlobalHeader and GlobalFooter components
+ * Epic #146: Added preview mode with section selection for feedback
  */
 
 import Link from 'next/link';
-import { Menu, X, ArrowRight, MessageCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, MessageCircle, Loader2 } from 'lucide-react';
 import { useState, useCallback, useId, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChatWidget } from '@/components/chat/ChatWidget';
@@ -34,6 +36,10 @@ import {
   type SuggestedCTA,
 } from '@/lib/stores/generated-sections-store';
 import { InlineGeneratedSection } from '@/components/interactive/InlineGeneratedSection';
+import { GlobalHeader, DefaultHeader } from '@/components/site/GlobalHeader';
+import { GlobalFooter, DefaultFooter } from '@/components/site/GlobalFooter';
+import { SectionWithOverlay } from '@/components/preview/SectionOverlay';
+import type { HeaderContent, FooterContent } from '@/lib/layout/global-components';
 
 interface PageContent {
   sections?: Section[];
@@ -74,20 +80,71 @@ interface SiteRendererProps {
   website: Website;
   page: Page;
   pages: Page[];
+  /** Header content from database (optional - uses DefaultHeader if not provided) */
+  headerContent?: HeaderContent;
+  /** Footer content from database (optional - uses DefaultFooter if not provided) */
+  footerContent?: FooterContent;
+  /** Navigation style: 'simple' or 'mega-menu' */
+  navStyle?: 'simple' | 'mega-menu';
+  /** Current page path for active state highlighting */
+  currentPath?: string;
+  /** Preview mode: enables section selection and feedback UI */
+  previewMode?: boolean;
+  /** Feedback mode: enables section click handlers */
+  feedbackMode?: boolean;
+  /** Callback when section is clicked (preview mode only) */
+  onSectionClick?: (sectionId: string) => void;
+  /** Currently selected section ID */
+  selectedSection?: string | null;
 }
 
-export function SiteRenderer({ website, page, pages }: SiteRendererProps) {
+export function SiteRenderer({
+  website,
+  page,
+  pages,
+  headerContent,
+  footerContent,
+  navStyle = 'simple',
+  currentPath,
+  previewMode = false,
+  feedbackMode = false,
+  onSectionClick,
+  selectedSection = null,
+}: SiteRendererProps) {
   return (
     <PersonaProvider>
       <ChatProvider>
-        <SiteRendererContent website={website} page={page} pages={pages} />
+        <SiteRendererContent
+          website={website}
+          page={page}
+          pages={pages}
+          headerContent={headerContent}
+          footerContent={footerContent}
+          navStyle={navStyle}
+          currentPath={currentPath}
+          previewMode={previewMode}
+          feedbackMode={feedbackMode}
+          onSectionClick={onSectionClick}
+          selectedSection={selectedSection}
+        />
       </ChatProvider>
     </PersonaProvider>
   );
 }
 
-function SiteRendererContent({ website, page, pages }: SiteRendererProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+function SiteRendererContent({
+  website,
+  page,
+  pages,
+  headerContent,
+  footerContent,
+  navStyle = 'simple',
+  currentPath,
+  previewMode = false,
+  feedbackMode = false,
+  onSectionClick,
+  selectedSection = null,
+}: SiteRendererProps) {
   const chatContext = useChatContext();
   const personaContext = usePersonaContext();
   const content = page.content as PageContent | null;
@@ -286,67 +343,28 @@ function SiteRendererContent({ website, page, pages }: SiteRendererProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href={`/sites/${website.slug}`} className="text-xl font-bold text-gray-900">
-                {website.name}
-              </Link>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              {pages.map(p => (
-                <Link
-                  key={p.id}
-                  href={p.is_homepage ? `/sites/${website.slug}` : `/sites/${website.slug}${p.slug}`}
-                  className={`text-sm font-medium transition-colors ${
-                    p.id === page.id
-                      ? 'text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {p.title}
-                </Link>
-              ))}
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900"
-              >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200">
-            <div className="px-4 py-3 space-y-2">
-              {pages.map(p => (
-                <Link
-                  key={p.id}
-                  href={p.is_homepage ? `/sites/${website.slug}` : `/sites/${website.slug}${p.slug}`}
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    p.id === page.id
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {p.title}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </nav>
+      {/* Navigation - uses GlobalHeader if content provided, otherwise DefaultHeader */}
+      {headerContent ? (
+        <GlobalHeader
+          websiteSlug={website.slug}
+          content={headerContent}
+          navStyle={navStyle}
+          primaryColor={primaryColor}
+          currentPath={currentPath}
+        />
+      ) : (
+        <DefaultHeader
+          websiteSlug={website.slug}
+          websiteName={website.name}
+          pages={pages.map((p) => ({
+            title: p.title,
+            slug: p.slug,
+            is_homepage: p.is_homepage,
+          }))}
+          primaryColor={primaryColor}
+          currentPath={currentPath}
+        />
+      )}
 
       {/* Persona Banner - shows personalized greeting when persona is detected */}
       {personaContext.activePersonaId && (
@@ -371,18 +389,25 @@ function SiteRendererContent({ website, page, pages }: SiteRendererProps) {
             {sections
               .sort((a, b) => a.order - b.order)
               .map((section, index) => (
-                <SectionRenderer
+                <SectionWithOverlay
                   key={section.id}
                   section={section}
-                  primaryColor={primaryColor}
-                  websiteId={website.id}
-                  onRoleSelect={handleRoleSelect}
-                  onChatInput={handleChatInput}
-                  onQuickQuestion={handleQuickQuestion}
-                  onChatTrigger={handleChatTrigger}
-                  onConversationalCTAClick={handleConversationalCTAClick}
-                  isFirstSection={index === 0}
-                />
+                  isSelected={selectedSection === section.id}
+                  feedbackMode={feedbackMode || false}
+                  onSectionClick={onSectionClick || (() => {})}
+                >
+                  <SectionRenderer
+                    section={section}
+                    primaryColor={primaryColor}
+                    websiteId={website.id}
+                    onRoleSelect={handleRoleSelect}
+                    onChatInput={handleChatInput}
+                    onQuickQuestion={handleQuickQuestion}
+                    onChatTrigger={handleChatTrigger}
+                    onConversationalCTAClick={handleConversationalCTAClick}
+                    isFirstSection={index === 0}
+                  />
+                </SectionWithOverlay>
               ))}
 
             {/* Phase 6: Generated Sections Container */}
@@ -410,48 +435,25 @@ function SiteRendererContent({ website, page, pages }: SiteRendererProps) {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <h3 className="text-lg font-bold mb-4">{website.name}</h3>
-              <p className="text-gray-400 text-sm">
-                Built with NextGenWeb - AI-powered website generation
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Pages</h4>
-              <ul className="space-y-2">
-                {pages.slice(0, 5).map(p => (
-                  <li key={p.id}>
-                    <Link
-                      href={p.is_homepage ? `/sites/${website.slug}` : `/sites/${website.slug}${p.slug}`}
-                      className="text-gray-400 hover:text-white text-sm transition-colors"
-                    >
-                      {p.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Legal</h4>
-              <ul className="space-y-2">
-                <li>
-                  <span className="text-gray-400 text-sm">Privacy Policy</span>
-                </li>
-                <li>
-                  <span className="text-gray-400 text-sm">Terms of Service</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-            &copy; {new Date().getFullYear()} {website.name}. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      {/* Footer - uses GlobalFooter if content provided, otherwise DefaultFooter */}
+      {footerContent ? (
+        <GlobalFooter
+          websiteSlug={website.slug}
+          content={footerContent}
+          primaryColor={primaryColor}
+        />
+      ) : (
+        <DefaultFooter
+          websiteSlug={website.slug}
+          websiteName={website.name}
+          pages={pages.map((p) => ({
+            title: p.title,
+            slug: p.slug,
+            is_homepage: p.is_homepage,
+          }))}
+          primaryColor={primaryColor}
+        />
+      )}
 
       {/* AI Chat Widget */}
       <ChatWidget

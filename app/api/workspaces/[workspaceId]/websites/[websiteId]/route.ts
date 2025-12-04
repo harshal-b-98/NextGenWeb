@@ -56,7 +56,7 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Fetch website with pages
+    // Fetch website with pages including layout information
     const { data: website, error } = await supabase
       .from('websites')
       .select(`
@@ -66,6 +66,9 @@ export async function GET(
           title,
           slug,
           is_homepage,
+          layout_status,
+          layout_generated_at,
+          content,
           created_at,
           updated_at
         )

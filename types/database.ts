@@ -44,6 +44,24 @@ export type InteractiveElementType = 'quiz' | 'calculator' | 'survey' | 'compari
 // Interactive element status
 export type InteractiveElementStatus = 'draft' | 'published' | 'archived';
 
+// Global component type (header, footer, etc.)
+export type GlobalComponentType = 'header' | 'footer' | 'announcement-bar' | 'cookie-banner' | 'sidebar' | 'chat-widget';
+
+// Feedback system types
+export type FeedbackType = 'content' | 'style' | 'layout' | 'remove' | 'add' | 'reorder';
+export type FeedbackStatus = 'pending' | 'processing' | 'applied' | 'rejected' | 'superseded';
+export type RevisionType = 'initial' | 'feedback' | 'rollback' | 'manual' | 'regeneration';
+export type ApprovalStatus = 'draft' | 'in_review' | 'changes_requested' | 'approved' | 'published';
+
+// Website version types (Epic #146)
+export type VersionStatus = 'draft' | 'production';
+export type VersionTriggerType = 'initial' | 'feedback' | 'rollback' | 'manual' | 'finalization';
+
+// Conversation types (Epic #177 - Complete Reimplementation)
+export type ConversationType = 'discovery' | 'refinement';
+export type ConversationStatus = 'active' | 'completed' | 'abandoned';
+export type MessageRole = 'user' | 'assistant' | 'system';
+
 // Deployment status
 export type DeploymentStatus = 'pending' | 'building' | 'deploying' | 'ready' | 'error' | 'canceled';
 
@@ -426,6 +444,9 @@ export interface Database {
           // Generation status fields
           generation_status: WebsiteGenerationStatus;
           last_generated_at: string | null;
+          // Version tracking fields
+          draft_version_id: string | null;
+          production_version_id: string | null;
         };
         Insert: {
           id?: string;
@@ -442,6 +463,9 @@ export interface Database {
           // Generation status fields
           generation_status?: WebsiteGenerationStatus;
           last_generated_at?: string | null;
+          // Version tracking fields
+          draft_version_id?: string | null;
+          production_version_id?: string | null;
         };
         Update: {
           id?: string;
@@ -458,6 +482,9 @@ export interface Database {
           // Generation status fields
           generation_status?: WebsiteGenerationStatus;
           last_generated_at?: string | null;
+          // Version tracking fields
+          draft_version_id?: string | null;
+          production_version_id?: string | null;
         };
         Relationships: [
           {
@@ -465,6 +492,248 @@ export interface Database {
             columns: ['workspace_id'];
             isOneToOne: false;
             referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      conversation_sessions: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          type: ConversationType;
+          status: ConversationStatus;
+          current_stage: string | null;
+          context: Json;
+          generated_website_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          type: ConversationType;
+          status?: ConversationStatus;
+          current_stage?: string | null;
+          context?: Json;
+          generated_website_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          type?: ConversationType;
+          status?: ConversationStatus;
+          current_stage?: string | null;
+          context?: Json;
+          generated_website_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversation_sessions_workspace_id_fkey';
+            columns: ['workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      conversation_messages: {
+        Row: {
+          id: string;
+          session_id: string;
+          role: MessageRole;
+          content: string;
+          metadata: Json;
+          sequence_number: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          role: MessageRole;
+          content: string;
+          metadata?: Json;
+          sequence_number: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          role?: MessageRole;
+          content?: string;
+          metadata?: Json;
+          sequence_number?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversation_messages_session_id_fkey';
+            columns: ['session_id'];
+            isOneToOne: false;
+            referencedRelation: 'conversation_sessions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      websites_v2: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          name: string;
+          domain: string | null;
+          status: string;
+          creation_conversation_id: string | null;
+          current_version_id: string | null;
+          published_version_id: string | null;
+          brand_config: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          published_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          name: string;
+          domain?: string | null;
+          status?: string;
+          creation_conversation_id?: string | null;
+          current_version_id?: string | null;
+          published_version_id?: string | null;
+          brand_config?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          published_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          name?: string;
+          domain?: string | null;
+          status?: string;
+          creation_conversation_id?: string | null;
+          current_version_id?: string | null;
+          published_version_id?: string | null;
+          brand_config?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          published_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'websites_v2_workspace_id_fkey';
+            columns: ['workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      website_versions_v2: {
+        Row: {
+          id: string;
+          website_id: string;
+          version_number: number;
+          snapshot: Json;
+          trigger_message_id: string | null;
+          trigger_description: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          website_id: string;
+          version_number: number;
+          snapshot: Json;
+          trigger_message_id?: string | null;
+          trigger_description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          website_id?: string;
+          version_number?: number;
+          snapshot?: Json;
+          trigger_message_id?: string | null;
+          trigger_description?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'website_versions_v2_website_id_fkey';
+            columns: ['website_id'];
+            isOneToOne: false;
+            referencedRelation: 'websites_v2';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      website_versions: {
+        Row: {
+          id: string;
+          website_id: string;
+          version_number: number;
+          status: VersionStatus;
+          page_revisions: Json; // { pageId: revisionId }
+          version_name: string | null;
+          description: string | null;
+          trigger_type: VersionTriggerType | null;
+          created_by: string | null;
+          created_at: string;
+          published_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          website_id: string;
+          version_number: number;
+          status?: VersionStatus;
+          page_revisions: Json;
+          version_name?: string | null;
+          description?: string | null;
+          trigger_type?: VersionTriggerType | null;
+          created_by?: string | null;
+          created_at?: string;
+          published_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          website_id?: string;
+          version_number?: number;
+          status?: VersionStatus;
+          page_revisions?: Json;
+          version_name?: string | null;
+          description?: string | null;
+          trigger_type?: VersionTriggerType | null;
+          created_by?: string | null;
+          created_at?: string;
+          published_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'website_versions_website_id_fkey';
+            columns: ['website_id'];
+            isOneToOne: false;
+            referencedRelation: 'websites';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'website_versions_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           }
         ];
@@ -486,6 +755,9 @@ export interface Database {
           layout_status: LayoutStatus;
           layout_error: string | null;
           layout_generated_at: string | null;
+          // Feedback system fields
+          current_revision_id: string | null;
+          approval_status: ApprovalStatus | null;
         };
         Insert: {
           id?: string;
@@ -503,6 +775,9 @@ export interface Database {
           layout_status?: LayoutStatus;
           layout_error?: string | null;
           layout_generated_at?: string | null;
+          // Feedback system fields
+          current_revision_id?: string | null;
+          approval_status?: ApprovalStatus | null;
         };
         Update: {
           id?: string;
@@ -520,6 +795,9 @@ export interface Database {
           layout_status?: LayoutStatus;
           layout_error?: string | null;
           layout_generated_at?: string | null;
+          // Feedback system fields
+          current_revision_id?: string | null;
+          approval_status?: ApprovalStatus | null;
         };
         Relationships: [
           {
@@ -527,6 +805,13 @@ export interface Database {
             columns: ['website_id'];
             isOneToOne: false;
             referencedRelation: 'websites';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pages_current_revision_id_fkey';
+            columns: ['current_revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'page_revisions';
             referencedColumns: ['id'];
           }
         ];
@@ -1302,6 +1587,250 @@ export interface Database {
           }
         ];
       };
+      site_global_components: {
+        Row: {
+          id: string;
+          website_id: string;
+          type: GlobalComponentType;
+          component_id: string;
+          content: Json;
+          styling: Json | null;
+          visibility: Json;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          website_id: string;
+          type: GlobalComponentType;
+          component_id: string;
+          content?: Json;
+          styling?: Json | null;
+          visibility?: Json;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          website_id?: string;
+          type?: GlobalComponentType;
+          component_id?: string;
+          content?: Json;
+          styling?: Json | null;
+          visibility?: Json;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'site_global_components_website_id_fkey';
+            columns: ['website_id'];
+            isOneToOne: false;
+            referencedRelation: 'websites';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      // ============================================
+      // FEEDBACK SYSTEM TABLES
+      // ============================================
+      section_feedback: {
+        Row: {
+          id: string;
+          page_id: string;
+          section_id: string;
+          feedback_type: FeedbackType;
+          feedback_text: string;
+          target_field: string | null;
+          status: FeedbackStatus;
+          ai_interpretation: string | null;
+          ai_confidence: number | null;
+          proposed_changes: Json | null;
+          created_by: string | null;
+          created_at: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          page_id: string;
+          section_id: string;
+          feedback_type: FeedbackType;
+          feedback_text: string;
+          target_field?: string | null;
+          status?: FeedbackStatus;
+          ai_interpretation?: string | null;
+          ai_confidence?: number | null;
+          proposed_changes?: Json | null;
+          created_by?: string | null;
+          created_at?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          page_id?: string;
+          section_id?: string;
+          feedback_type?: FeedbackType;
+          feedback_text?: string;
+          target_field?: string | null;
+          status?: FeedbackStatus;
+          ai_interpretation?: string | null;
+          ai_confidence?: number | null;
+          proposed_changes?: Json | null;
+          created_by?: string | null;
+          created_at?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'section_feedback_page_id_fkey';
+            columns: ['page_id'];
+            isOneToOne: false;
+            referencedRelation: 'pages';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      page_revisions: {
+        Row: {
+          id: string;
+          page_id: string;
+          revision_number: number;
+          revision_type: RevisionType;
+          change_summary: string | null;
+          sections_modified: Json | null;
+          feedback_ids: Json | null;
+          content_snapshot: Json;
+          created_by: string | null;
+          created_at: string | null;
+          rolled_back_from: string | null;
+        };
+        Insert: {
+          id?: string;
+          page_id: string;
+          revision_number: number;
+          revision_type: RevisionType;
+          change_summary?: string | null;
+          sections_modified?: Json | null;
+          feedback_ids?: Json | null;
+          content_snapshot: Json;
+          created_by?: string | null;
+          created_at?: string | null;
+          rolled_back_from?: string | null;
+        };
+        Update: {
+          id?: string;
+          page_id?: string;
+          revision_number?: number;
+          revision_type?: RevisionType;
+          change_summary?: string | null;
+          sections_modified?: Json | null;
+          feedback_ids?: Json | null;
+          content_snapshot?: Json;
+          created_by?: string | null;
+          created_at?: string | null;
+          rolled_back_from?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'page_revisions_page_id_fkey';
+            columns: ['page_id'];
+            isOneToOne: false;
+            referencedRelation: 'pages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'page_revisions_rolled_back_from_fkey';
+            columns: ['rolled_back_from'];
+            isOneToOne: false;
+            referencedRelation: 'page_revisions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      page_approvals: {
+        Row: {
+          id: string;
+          page_id: string;
+          revision_id: string;
+          status: ApprovalStatus;
+          submitted_by: string | null;
+          submitted_at: string | null;
+          submission_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_notes: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          approval_notes: string | null;
+          published_at: string | null;
+          published_by: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          page_id: string;
+          revision_id: string;
+          status?: ApprovalStatus;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          submission_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          approval_notes?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          page_id?: string;
+          revision_id?: string;
+          status?: ApprovalStatus;
+          submitted_by?: string | null;
+          submitted_at?: string | null;
+          submission_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          approval_notes?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'page_approvals_page_id_fkey';
+            columns: ['page_id'];
+            isOneToOne: false;
+            referencedRelation: 'pages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'page_approvals_revision_id_fkey';
+            columns: ['revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'page_revisions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1388,6 +1917,7 @@ export type BrandConfig = Tables<'brand_configs'>;
 export type InteractiveElement = Tables<'interactive_elements'>;
 export type InteractiveResponseRow = Tables<'interactive_responses'>;
 export type ActivityEventRow = Tables<'activity_events'>;
+export type SiteGlobalComponent = Tables<'site_global_components'>;
 
 // Page type enum
 export type PageType =

@@ -17,3 +17,9 @@ export * from './entities';
 
 // Knowledge Graph
 export * from './graph';
+
+// KB Queries (Story 7.3: KB-Grounded Global Components)
+export * from './kb-queries';
+
+// KB Coverage Analyzer (Story 7.1)
+export * from './coverage-analyzer';

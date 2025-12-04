@@ -295,3 +295,18 @@ export type {
   ResponseServiceResult,
   SubmitResponseInput,
 } from './storage/response-service';
+
+// ============================================================================
+// AI-SUGGESTED INTERACTIVE ELEMENTS (Story 7.5)
+// ============================================================================
+
+export {
+  suggestInteractiveElements,
+  ENTITY_TO_INTERACTIVE_MAP,
+} from './ai-suggestions';
+
+export type {
+  SuggestedInteractiveElement,
+  InteractiveElementConfig as AISuggestedConfig,
+  InteractiveSuggestionsResult,
+} from './ai-suggestions';

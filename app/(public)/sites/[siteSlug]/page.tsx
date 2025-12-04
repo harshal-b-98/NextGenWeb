@@ -7,12 +7,15 @@
  * - Each click generates a new page section below (not navigation)
  * - Creates an infinite scrolling journey of AI-generated content
  * - All interactions use workspace-specific knowledge
+ *
+ * Story #128: Integrated global components (header/footer) from database
  */
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ConversationalLandingPageWrapper } from './conversational/ConversationalLandingPageWrapper';
+import { getHeader, getFooter, type HeaderContent, type FooterContent } from '@/lib/layout/global-components';
 
 interface PageProps {
   params: Promise<{
@@ -46,10 +49,10 @@ export default async function SiteHomepage({ params }: PageProps) {
   const { siteSlug } = await params;
   const supabase = await createClient();
 
-  // Find website by slug with workspace info
+  // Find website by slug with workspace info and pages
   const { data: website, error: websiteError } = await supabase
     .from('websites')
-    .select('id, name, slug, brand_config, workspace_id')
+    .select('id, name, slug, brand_config, workspace_id, pages(id, title, slug, is_homepage)')
     .eq('slug', siteSlug)
     .single();
 
@@ -57,7 +60,25 @@ export default async function SiteHomepage({ params }: PageProps) {
     notFound();
   }
 
-  // Render the conversational landing page
+  // Fetch global components (header and footer) from database
+  const [headerComponent, footerComponent] = await Promise.all([
+    getHeader(website.id),
+    getFooter(website.id),
+  ]);
+
+  // Extract content from global components (may be undefined if not found)
+  const headerContent = headerComponent?.content as HeaderContent | undefined;
+  const footerContent = footerComponent?.content as FooterContent | undefined;
+
+  // Get pages for navigation
+  const pages = (website.pages || []).map((p: { id: string; title: string; slug: string; is_homepage: boolean }) => ({
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    is_homepage: p.is_homepage,
+  }));
+
+  // Render the conversational landing page with global components
   // This uses workspace-specific knowledge base for all interactions
   return (
     <ConversationalLandingPageWrapper
@@ -66,6 +87,9 @@ export default async function SiteHomepage({ params }: PageProps) {
       websiteName={website.name}
       slug={website.slug}
       brandConfig={website.brand_config as Record<string, unknown> | null}
+      headerContent={headerContent}
+      footerContent={footerContent}
+      pages={pages}
     />
   );
 }

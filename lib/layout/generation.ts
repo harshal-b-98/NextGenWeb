@@ -26,7 +26,25 @@ import {
   DEFAULT_STORY_FLOW,
   PAGE_TYPE_CONFIGS,
   AnimationConfig,
+  NavigationVariant,
+  FooterVariant,
 } from './types';
+import {
+  saveGlobalComponents,
+  type GlobalComponentInput,
+  type HeaderContent,
+  type FooterContent,
+} from './global-components';
+import {
+  GLOBAL_COMPONENTS_SYSTEM_PROMPT,
+  determineNavigationStyle,
+  buildGlobalComponentsPrompt,
+  parseHeaderContent,
+  parseFooterContent,
+  generateDefaultHeader,
+  generateDefaultFooter,
+  type NavigationDecisionContext,
+} from '@/lib/ai/prompts/global-components';
 
 // =============================================================================
 // TYPES FOR INTERNAL USE
@@ -915,6 +933,7 @@ Return a JSON object with:
   }
 
   private generateGlobalComponents(pages: PageLayout[]): GlobalComponent[] {
+    // Return basic structure - actual AI generation happens in generateGlobalComponentsWithLLM
     return [
       {
         id: 'global-header',
@@ -944,6 +963,177 @@ Return a JSON object with:
         visibility: { showOn: 'all' },
       },
     ];
+  }
+
+  // ===========================================================================
+  // AI-POWERED GLOBAL COMPONENT GENERATION
+  // ===========================================================================
+
+  /**
+   * Generate global components (header/footer) using LLM and save to database
+   *
+   * Task #138: Update generateGlobalComponents to use LLM
+   */
+  async generateGlobalComponentsWithLLM(params: {
+    websiteId: string;
+    workspaceId: string;
+    websiteName: string;
+    pages: Array<{ title: string; slug: string; type?: PageType; isHomepage?: boolean }>;
+    brandVoice?: {
+      tone: string;
+      formality?: string;
+      personality?: string[];
+    };
+    industry?: string;
+    companyDescription?: string;
+    knowledgeSummary?: string;
+    socialLinks?: Array<{ platform: string; url: string }>;
+  }): Promise<{
+    success: boolean;
+    header?: HeaderContent;
+    footer?: FooterContent;
+    navStyle: 'simple' | 'mega-menu';
+    error?: string;
+  }> {
+    const {
+      websiteId,
+      websiteName,
+      pages,
+      brandVoice,
+      industry,
+      companyDescription,
+      knowledgeSummary,
+      socialLinks,
+    } = params;
+
+    // 1. Determine navigation style based on site characteristics
+    const navDecisionContext: NavigationDecisionContext = {
+      pageCount: pages.length,
+      pageTypes: pages.map((p) => p.type || 'custom'),
+      hasCategories: false, // TODO: Extract from knowledge base
+      categoryCount: 0,
+      industry,
+      businessType: undefined,
+      contentTopics: [],
+    };
+
+    const navDecision = determineNavigationStyle(navDecisionContext);
+    console.log('[generateGlobalComponentsWithLLM] Nav style decision:', navDecision);
+
+    // 2. Build prompt for LLM
+    const prompt = buildGlobalComponentsPrompt({
+      websiteName,
+      pages,
+      brandVoice,
+      industry,
+      companyDescription,
+      knowledgeSummary,
+      socialLinks,
+      navStyle: navDecision.style,
+    });
+
+    let headerContent: HeaderContent;
+    let footerContent: FooterContent;
+
+    try {
+      // 3. Call LLM to generate content
+      const llmResponse = await this.callGlobalComponentsLLM(prompt);
+
+      // 4. Parse and validate response
+      headerContent = parseHeaderContent(llmResponse, websiteName);
+      footerContent = parseFooterContent(llmResponse, websiteName);
+    } catch (error) {
+      console.warn('[generateGlobalComponentsWithLLM] LLM failed, using defaults:', error);
+
+      // Use fallback generators
+      headerContent = generateDefaultHeader(websiteName, pages);
+      footerContent = generateDefaultFooter(websiteName, pages);
+    }
+
+    // 5. Save to database
+    const componentsToSave: GlobalComponentInput[] = [
+      {
+        type: 'header',
+        componentId: navDecision.componentId as NavigationVariant,
+        content: headerContent,
+        visibility: { showOn: 'all' },
+        isActive: true,
+        sortOrder: 0,
+      },
+      {
+        type: 'footer',
+        componentId: 'footer-standard' as FooterVariant,
+        content: footerContent,
+        visibility: { showOn: 'all' },
+        isActive: true,
+        sortOrder: 1,
+      },
+    ];
+
+    const saveResult = await saveGlobalComponents(websiteId, componentsToSave);
+
+    if (!saveResult.success) {
+      console.error('[generateGlobalComponentsWithLLM] Failed to save:', saveResult.error);
+      return {
+        success: false,
+        error: saveResult.error,
+        navStyle: navDecision.style,
+      };
+    }
+
+    console.log('[generateGlobalComponentsWithLLM] Successfully saved global components');
+
+    return {
+      success: true,
+      header: headerContent,
+      footer: footerContent,
+      navStyle: navDecision.style,
+    };
+  }
+
+  /**
+   * Call LLM for global components generation
+   */
+  private async callGlobalComponentsLLM(prompt: string): Promise<Record<string, unknown>> {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4-turbo-preview',
+        messages: [
+          {
+            role: 'system',
+            content: GLOBAL_COMPONENTS_SYSTEM_PROMPT,
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Empty LLM response');
+    }
+
+    return JSON.parse(content);
   }
 }
 
@@ -1065,4 +1255,35 @@ export async function getPageLayout(
     },
     personaVariants: content.personaVariants as PageLayout['personaVariants'],
   };
+}
+
+/**
+ * Generate AI-powered global components (header/footer)
+ *
+ * Story #126: AI-Powered Header/Footer Content Generation
+ * This is the main entry point for generating global components with LLM.
+ */
+export async function generateGlobalComponentsWithAI(params: {
+  websiteId: string;
+  workspaceId: string;
+  websiteName: string;
+  pages: Array<{ title: string; slug: string; type?: PageType; isHomepage?: boolean }>;
+  brandVoice?: {
+    tone: string;
+    formality?: string;
+    personality?: string[];
+  };
+  industry?: string;
+  companyDescription?: string;
+  knowledgeSummary?: string;
+  socialLinks?: Array<{ platform: string; url: string }>;
+}): Promise<{
+  success: boolean;
+  header?: HeaderContent;
+  footer?: FooterContent;
+  navStyle: 'simple' | 'mega-menu';
+  error?: string;
+}> {
+  const agent = new LayoutGenerationAgent();
+  return agent.generateGlobalComponentsWithLLM(params);
 }

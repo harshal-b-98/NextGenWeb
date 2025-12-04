@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { reprocessKnowledgeItem } from '@/lib/knowledge/embeddings/pipeline';
+import { triggerLayoutGeneration } from '@/lib/knowledge/auto-layout-generator';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -151,12 +152,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Regenerate Embeddings] Completed. Processed ${processed.length} items, generated ${totalEmbeddings} embeddings, ${errors.length} errors`);
 
+    // Trigger layout generation after embeddings are regenerated
+    // This runs asynchronously and doesn't block the response
+    triggerLayoutGeneration(workspaceId).catch(err => {
+      console.error('[Regenerate Embeddings] Layout generation failed:', err);
+    });
+
     return NextResponse.json({
       success: true,
       message: `Processed ${processed.length} knowledge items`,
       processed: processed.length,
       totalEmbeddings,
       errors: errors.length > 0 ? errors : undefined,
+      layoutGenerationTriggered: true,
     });
 
   } catch (error) {

@@ -67,3 +67,15 @@ export {
   validateContent,
   getSuggestedContentStructure,
 } from './slots';
+
+// KB-Grounded Content Generation (Story 7.4)
+export {
+  generateKBGroundedSectionContent,
+  fetchRelevantEntities,
+  groupEntitiesByType,
+  ENTITY_ROLE_MAPPING,
+  ROLE_ENTITY_PRIORITY,
+  type KBTraceability,
+  type KBGroundedSectionContent,
+  type KBGroundedSectionInput,
+} from './kb-grounded-content';

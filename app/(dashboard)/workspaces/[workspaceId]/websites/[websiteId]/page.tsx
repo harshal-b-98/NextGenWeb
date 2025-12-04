@@ -47,6 +47,8 @@ import {
   Info,
   ChevronRight,
   Send,
+  Layers,
+  LayoutGrid,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,11 +56,26 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { WebsiteStatus } from '@/types/database';
 
+interface LayoutSection {
+  id: string;
+  type: string;
+  order: number;
+  content?: Record<string, unknown>;
+}
+
+interface PageContent {
+  sections?: LayoutSection[];
+  [key: string]: unknown;
+}
+
 interface Page {
   id: string;
   title: string;
   slug: string;
   is_homepage: boolean;
+  layout_status?: 'pending' | 'generating' | 'generated' | 'failed';
+  layout_generated_at?: string;
+  content?: PageContent;
   created_at: string;
   updated_at: string;
 }
@@ -93,7 +110,7 @@ export default function WebsiteDetailPage() {
 
   const [website, setWebsite] = useState<Website | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pages' | 'branding' | 'settings' | 'suggestions' | 'notifications' | 'export' | 'deploy'>('pages');
+  const [activeTab, setActiveTab] = useState<'pages' | 'layouts' | 'branding' | 'settings' | 'suggestions' | 'notifications' | 'export' | 'deploy'>('pages');
   const [showCreatePageModal, setShowCreatePageModal] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -385,7 +402,13 @@ export default function WebsiteDetailPage() {
           <Link href={`/sites/${website.slug}`} target="_blank">
             <Button variant="outline">
               <Eye className="mr-2 h-4 w-4" />
-              Preview
+              Preview Live Site
+            </Button>
+          </Link>
+          <Link href={`/workspaces/${workspaceId}/websites/${websiteId}/preview`} target="_blank">
+            <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Open Preview & Give Feedback
             </Button>
           </Link>
           {website.status === 'draft' && (
@@ -413,6 +436,17 @@ export default function WebsiteDetailPage() {
         >
           <FileText className="inline-block mr-2 h-4 w-4" />
           Pages ({website.pages?.length || 0})
+        </button>
+        <button
+          onClick={() => setActiveTab('layouts')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'layouts'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-neutral-500 hover:text-neutral-700'
+          }`}
+        >
+          <Layers className="inline-block mr-2 h-4 w-4" />
+          Layouts
         </button>
         <button
           onClick={() => setActiveTab('branding')}
@@ -543,6 +577,12 @@ export default function WebsiteDetailPage() {
                           <Wand2 className="mr-2 h-4 w-4" />
                           Generate
                         </Button>
+                        <Link href={`/workspaces/${workspaceId}/preview/${page.id}`}>
+                          <Button variant="outline" size="sm">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Preview & Feedback
+                          </Button>
+                        </Link>
                         <Link href={`/sites/${website.slug}/${page.slug}`} target="_blank">
                           <Button variant="ghost" size="sm">
                             <ExternalLink className="h-4 w-4" />
@@ -582,6 +622,129 @@ export default function WebsiteDetailPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Layouts Tab */}
+      {activeTab === 'layouts' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Page Layouts</h2>
+            <div className="text-sm text-neutral-500">
+              {website.pages?.filter(p => p.layout_status === 'generated').length || 0} of {website.pages?.length || 0} pages have generated layouts
+            </div>
+          </div>
+
+          {website.pages?.length === 0 ? (
+            <Card className="py-12">
+              <CardContent className="text-center">
+                <Layers className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No pages yet</h3>
+                <p className="text-neutral-500 mb-4">
+                  Create pages first to generate layouts
+                </p>
+                <Button onClick={() => setActiveTab('pages')}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Go to Pages
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {website.pages?.map(page => {
+                const sections = page.content?.sections || [];
+                const hasLayout = page.layout_status === 'generated' && sections.length > 0;
+
+                return (
+                  <Card key={page.id} className="overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${page.is_homepage ? 'bg-primary/10' : 'bg-neutral-100'}`}>
+                            {page.is_homepage ? (
+                              <Home className={`h-4 w-4 ${page.is_homepage ? 'text-primary' : 'text-neutral-500'}`} />
+                            ) : (
+                              <FileText className="h-4 w-4 text-neutral-500" />
+                            )}
+                          </div>
+                          <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              {page.title}
+                              {page.is_homepage && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                  Homepage
+                                </span>
+                              )}
+                            </CardTitle>
+                            <CardDescription className="text-xs">
+                              /{page.slug}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {page.layout_status === 'generated' ? (
+                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                              <CheckCircle className="h-3 w-3" />
+                              Generated
+                            </span>
+                          ) : page.layout_status === 'generating' ? (
+                            <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Generating
+                            </span>
+                          ) : page.layout_status === 'failed' ? (
+                            <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                              <XCircle className="h-3 w-3" />
+                              Failed
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
+                              <Clock className="h-3 w-3" />
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {hasLayout ? (
+                        <div>
+                          <div className="text-xs text-neutral-500 mb-2">
+                            {sections.length} section{sections.length !== 1 ? 's' : ''}
+                            {page.layout_generated_at && (
+                              <span> • Generated {new Date(page.layout_generated_at).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {sections.map((section, index) => (
+                              <div
+                                key={section.id || index}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-50 border border-neutral-200 rounded text-xs"
+                              >
+                                <LayoutGrid className="h-3 w-3 text-neutral-400" />
+                                <span className="font-medium text-neutral-700 capitalize">
+                                  {section.type.replace(/-/g, ' ')}
+                                </span>
+                                <span className="text-neutral-400">#{section.order + 1}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-neutral-500 italic">
+                          {page.layout_status === 'generating'
+                            ? 'Layout is being generated...'
+                            : page.layout_status === 'failed'
+                            ? 'Layout generation failed. Try regenerating.'
+                            : 'No layout generated yet'}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>

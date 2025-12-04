@@ -7,6 +7,7 @@ import {
   LayoutGenerationInput,
   ComponentVariant,
 } from '@/lib/layout';
+import { autoLayoutGenerator } from '@/lib/knowledge/auto-layout-generator';
 
 export async function POST(
   request: NextRequest,
@@ -37,8 +38,31 @@ export async function POST(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    // Parse and validate request body
+    // Parse request body
     const body = await request.json();
+
+    // If only websiteId is provided, use AutoLayoutGenerator for KB-based generation
+    if (body.websiteId && !body.pageType) {
+      console.log(`[Layout Generate API] Using AutoLayoutGenerator for workspace ${workspaceId}`);
+
+      const result = await autoLayoutGenerator.generateLayoutsForWorkspace(workspaceId);
+
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || 'Failed to generate layout' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        sectionsGenerated: result.sectionsGenerated,
+        layoutId: result.layoutId,
+        improvements: result.improvements,
+      });
+    }
+
+    // Otherwise, use full LayoutGenerationAgent with page type configuration
     const validationResult = LayoutGenerationInputSchema.safeParse({
       ...body,
       workspaceId,

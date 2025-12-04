@@ -393,6 +393,15 @@ export interface SectionRenderData {
 }
 
 /**
+ * Props for section wrapper component (used for feedback overlays)
+ */
+export interface SectionWrapperProps {
+  sectionId: string;
+  componentId: string;
+  children: React.ReactNode;
+}
+
+/**
  * Props for dynamic page renderer
  */
 export interface DynamicPageRendererProps {
@@ -425,6 +434,9 @@ export interface DynamicPageRendererProps {
 
   /** Callback on error */
   onError?: (error: string) => void;
+
+  /** Optional wrapper component for each section (used for feedback overlays) */
+  sectionWrapper?: React.ComponentType<SectionWrapperProps>;
 }
 
 // ============================================================================
